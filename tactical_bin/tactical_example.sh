@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # 
-#example script showing how to use tactical module
+#example script showing how to use tactical _module
 #for extraction, metadata, and/or flags
 
 #Interface:

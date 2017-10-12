@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # 
-'''
+"""
 SCAN CLAMAV
 
-Laika module for scanning with the ClamAV Daemon
+Laika _module for scanning with the ClamAV Daemon
 
 Install pyClamd 0.3.10 or greater from:
   https://pypi.python.org/pypi/pyClamd/
   or
   http://xael.org/norman/python/pyclamd/
-'''
+"""
 
 
 import logging
@@ -30,16 +30,16 @@ from laikaboss.util import get_option
 from laikaboss.si_module import SI_MODULE
 
 class SCAN_CLAMAV(SI_MODULE):
-    '''
-    Laika module for scanning with the ClamAV Daemon
-    '''
+    """
+    Laika _module for scanning with the ClamAV Daemon
+    """
     def __init__(self,):
         self.module_name = "SCAN_CLAMAV"
         self.flag_prefix = "clam"
         self.clam = None
 
     def _run(self, scanObject, result, depth, args):
-        '''
+        """
         Arguments:
         unixsocket     -- Path to the clamd unix socket (str)
         maxbytes       -- Maximum number of bytes to scan (0 is unlimited) (int)
@@ -47,7 +47,7 @@ class SCAN_CLAMAV(SI_MODULE):
         Returns:
         Flags           -- Virus name hits
         Metadata        -- Unix socket or daemon errors
-        '''
+        """
         moduleResult = []
 
         unix_socket = str(get_option(args, 'unixsocket', 'scanclamavunixsocket', '/var/run/clamav/clamd.ctl'))

@@ -98,12 +98,12 @@ class TACTICAL(SI_MODULE):
                             raise
                         finally:
                             #make sure the incoming file is deleted, or at least we try....
-                            logging.debug("Trying to unlink file: %s" % (line_value))
+                            logging.debug("Trying to unlink file: %s" % line_value)
                             os.unlink(line_value)
                     else:
                         pass
                 if unlinkDir:
-                    logging.debug("Attempting to remove temp directories: %s" % (tmp_dirs))
+                    logging.debug("Attempting to remove temp directories: %s" % tmp_dirs)
                     # Loop through the directories and remove them, starting with the deepest level (by length)
                     for tmp_dir in sorted(tmp_dirs, key=len, reverse=True):
                         try:
@@ -111,8 +111,8 @@ class TACTICAL(SI_MODULE):
                         except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
                             raise
                         except:
-                            log_module("MSG", self.module_name, 0, scanObject, result, "Could not remove tmp dir %s" % (tmp_dir))
-                            logging.exception("Unable to remove temp directory: %s" % (tmp_dir))
+                            log_module("MSG", self.module_name, 0, scanObject, result, "Could not remove tmp dir %s" % tmp_dir)
+                            logging.exception("Unable to remove temp directory: %s" % tmp_dir)
 
         return moduleResult
 

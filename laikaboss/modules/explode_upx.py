@@ -21,9 +21,9 @@ import pexpect
 import os
 
 class EXPLODE_UPX(SI_MODULE):
-    '''a module that decompresses upx compressed executables'''
+    """a _module that decompresses upx compressed executables"""
     def __init__(self,):
-        ''' __init__ function merely needs to set its module_name and nothing more'''
+        """ __init__ function merely needs to set its module_name and nothing more"""
         self.module_name = "EXPLODE_UPX" 
         self.TEMP_DIR = '/tmp/laikaboss_tmp'
         if hasattr(config, 'tempdir'):
@@ -33,8 +33,8 @@ class EXPLODE_UPX(SI_MODULE):
             os.chmod(self.TEMP_DIR, 0777)
 
     def _run(self, scanObject, result, depth, args):
-        ''' The core of your laika module. This is how your code will be invoked
-            
+        """ The core of your laika _module. This is how your code will be invoked
+
             Requires:
                 Package Dependencies Only
             Assumes:
@@ -55,7 +55,7 @@ class EXPLODE_UPX(SI_MODULE):
                    True:  Add the buffer to the result object
                    False: Do nothing (future perhaps add failed to decompress metadata?)
                 6. Return
-        '''
+        """
         moduleResult = []
         try:
             with tempfile.NamedTemporaryFile(dir=self.TEMP_DIR) as temp_file_input:

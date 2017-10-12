@@ -98,10 +98,10 @@ def main():
                       action="store", type="string",
                       dest="log_json",
                       help="enable logging JSON results to file")
-    parser.add_option("-m", "--module",
+    parser.add_option("-m", "--_module",
                       action="store", type="string",
                       dest="scan_modules",
-                      help="Specify individual module(s) to run and their arguments. If multiple, must be a space-separated list.")
+                      help="Specify individual _module(s) to run and their arguments. If multiple, must be a space-separated list.")
     parser.add_option("--parent",
                       action="store", type="string",
                       dest="parent", default="",
@@ -164,21 +164,21 @@ def main():
         SCAN_MODULES = options.scan_modules.split()
     else:
         SCAN_MODULES = None
-    logging.debug("SCAN_MODULES: %s"  % (SCAN_MODULES))
+    logging.debug("SCAN_MODULES: %s" % SCAN_MODULES)
 
     global PROGRESS_BAR
     if options.progress:
         PROGRESS_BAR = 1
     else:
         PROGRESS_BAR = strtobool(getConfig('progress_bar'))
-    logging.debug("PROGRESS_BAR: %s"  % (PROGRESS_BAR))
+    logging.debug("PROGRESS_BAR: %s" % PROGRESS_BAR)
 
     global LOG_RESULT
     if options.log_result:
         LOG_RESULT = 1
     else:
         LOG_RESULT = strtobool(getConfig('log_result'))
-    logging.debug("LOG_RESULT: %s" % (LOG_RESULT))
+    logging.debug("LOG_RESULT: %s" % LOG_RESULT)
 
     global LOG_JSON
     if options.log_json:
@@ -191,21 +191,21 @@ def main():
         NUM_PROCS = options.num_procs
     else:
         NUM_PROCS = int(getConfig('num_procs'))
-    logging.debug("NUM_PROCS: %s"  % (NUM_PROCS))
+    logging.debug("NUM_PROCS: %s" % NUM_PROCS)
 
     global MAX_BYTES
     if options.sizeLimit:
         MAX_BYTES = options.sizeLimit * 1024 * 1024
     else:
         MAX_BYTES = int(getConfig('max_bytes'))
-    logging.debug("MAX_BYTES: %s"  % (MAX_BYTES))
+    logging.debug("MAX_BYTES: %s" % MAX_BYTES)
 
     global MAX_FILES
     if options.fileLimit:
         MAX_FILES = options.fileLimit
     else:
         MAX_FILES = int(getConfig('max_files'))
-    logging.debug("MAX_FILES: %s"  % (MAX_FILES))
+    logging.debug("MAX_FILES: %s" % MAX_FILES)
 
     global SOURCE
     if options.source:
@@ -252,10 +252,10 @@ def main():
                     break
                 else:
                     if not os.path.isfile(f):
-                        error("One of the specified files does not exist: %s" % (f))
+                        error("One of the specified files does not exist: %s" % f)
                         return 1
                     if os.path.isdir(f):
-                        error("One of the files you specified is actually a directory: %s" % (f))
+                        error("One of the files you specified is actually a directory: %s" % f)
                         return 1
                     DATA_PATH.append(f)
 
@@ -274,10 +274,10 @@ def main():
     else:
         for f in args:
             if not os.path.isfile(f):
-                error("One of the specified files does not exist: %s" % (f))
+                error("One of the specified files does not exist: %s" % f)
                 return 1
             if os.path.isdir(f):
-                error("One of the files you specified is actually a directory: %s" % (f))
+                error("One of the files you specified is actually a directory: %s" % f)
                 return 1
         
         DATA_PATH = args
@@ -302,13 +302,13 @@ def main():
         fileList = fileList[:MAX_FILES]
 
     num_jobs = len(fileList)
-    logging.debug("Loaded %s files for scanning" % (num_jobs))
+    logging.debug("Loaded %s files for scanning" % num_jobs)
     
     # Start consumers
     # If there's less files to process than processes, reduce the number of processes
     if num_jobs < NUM_PROCS:
         NUM_PROCS = num_jobs
-    logging.debug("Starting %s processes" % (NUM_PROCS))
+    logging.debug("Starting %s processes" % NUM_PROCS)
     consumers = [ Consumer(tasks, results)
                   for i in xrange(NUM_PROCS) ]
     try:
@@ -366,7 +366,7 @@ class QueueMonitor(multiprocessing.Process):
             warning("progressbar interrupted by user\n")
             return 1
         except ImportError:
-            warning("progressbar module not available")
+            warning("progressbar _module not available")
         except:
             warning("unknown error from progress bar")
 
@@ -397,7 +397,7 @@ class Consumer(multiprocessing.Process):
                 with open(next_task) as nextfile:
                     file_buffer = nextfile.read()
             except IOError:
-                logging.debug("Error opening: %s" % (next_task))
+                logging.debug("Error opening: %s" % next_task)
                 self.task_queue.task_done()
                 self.result_queue.put(answer)
                 continue
@@ -424,7 +424,7 @@ class Consumer(multiprocessing.Process):
                         try:
                             os.makedirs(UID_SAVE_PATH)
                         except (OSError, IOError) as e:
-                            error("\nERROR: unable to write to %s...\n" % (UID_SAVE_PATH))
+                            error("\nERROR: unable to write to %s...\n" % UID_SAVE_PATH)
                             raise
                     for uid, scanObject in result.files.iteritems():
                         with open("%s/%s" % (UID_SAVE_PATH, uid), "wb") as f:
@@ -432,10 +432,10 @@ class Consumer(multiprocessing.Process):
                         if scanObject.filename and scanObject.depth != 0:
                             linkPath = "%s/%s" % (UID_SAVE_PATH, scanObject.filename.replace("/","_"))
                             if not os.path.lexists(linkPath):
-                                os.symlink("%s" % (uid), linkPath)
+                                os.symlink("%s" % uid, linkPath)
                         elif scanObject.filename:
                             filenameParts = scanObject.filename.split("/")
-                            os.symlink("%s" % (uid), "%s/%s" % (UID_SAVE_PATH, filenameParts[-1]))
+                            os.symlink("%s" % uid, "%s/%s" % (UID_SAVE_PATH, filenameParts[-1]))
                     with open("%s/%s" % (UID_SAVE_PATH, "result.json"), "wb") as f: 
                         f.write(resultJSON)
                 

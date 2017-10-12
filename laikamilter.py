@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # 
-'''
-Milter for LaikaBOSS
+"""
+milter for LaikaBOSS
 
 emails can be blocked according to laikaboss disposition.
 
@@ -25,7 +25,7 @@ but this option may assist with debugging.
 
 Logging via syslog hardcoded to local0 with tag defined in config
 Output: syslog.alert:       per email/recipient logs formatted in laika legacy log format
-        syslog.debug:       Debug Information 
+        syslog.debug:       Debug Information
         syslog.err          Error Information
 
 laika legacy log format:
@@ -39,7 +39,7 @@ File handle limit is a common cause of crashing for milter. Two main limitations
 1. Typical per process file handle limits, ulimit -n, usually 1024, can be adjusted through typical means.
 2. FD_SETSIZE limit in select(), also usually 1024. See SM_CONF_POLL to enable poll() in libmilter.
 
-The config item maxFiles is designed to help limit consumption of file handles after the specified limit is reached. 
+The config item maxFiles is designed to help limit consumption of file handles after the specified limit is reached.
 This mechanism may help prevent reaching file handle limits, but may not fully prevent reaching file handle limit on
 servers that process many email simultaneously. An as alternative to increasing these limits, one might running more
 instances of the milter server and load balance across them.
@@ -83,16 +83,24 @@ For example, given the following json file:
 
 If the MTAs in group gateway are connected to this milter, then emails from from the systems in groups internala and internalb will not be scanned (but emails from other upstream servers will be). Localhost to localhost email is also exempted.
 
-'''
+"""
 
 
 import sys
 import traceback
 import os
-import StringIO
 import re
 import json
-import Milter
+if sys.version_info >= (3, 0):
+    import milter
+    from _io import StringIO
+    from _pickle import pickle
+    from configparser import ConfigParser
+else:
+    import Milter as milter
+    import StringIO
+    import cPickle as pickle
+
 import resource
 import time
 from time import strftime
@@ -101,11 +109,9 @@ import syslog
 import zmq
 import datetime
 import random
-import ConfigParser
 from subprocess import Popen, PIPE, STDOUT
 import zlib
 import uuid
-import cPickle as pickle
 from email.utils import formatdate
 from email.utils import parsedate_tz
 from email.utils import mktime_tz
@@ -116,13 +122,13 @@ from laikaboss.clientLib import Client, flagRollup, getAttachmentList, \
 
 global_whitelist = {}
 
-class LaikaMilter(Milter.Base):
+class Laikamilter(milter.Base):
     """
-    Main Milter class
+    Main milter class
     libmilter uses one instance per connection and closes
     
-    1) Create Milter.Factory referencing this class
-    2) Start Milter
+    1) Create milter.Factory referencing this class
+    2) Start milter
     
     """
     def __init__(self):
@@ -148,7 +154,7 @@ class LaikaMilter(Milter.Base):
         self.CUSTOMHELO       = ""
         self.CUSTOMFROM       = ""
         self.CUSTOMORCPT      = []
-        self.milterConfig   = MilterConfig()
+        self.milterConfig   = milterConfig()
         if self.altConfig:
             self.milterConfig.configFileLoc = self.altConfig
         self.milterConfig.loadAll()
@@ -160,7 +166,7 @@ class LaikaMilter(Milter.Base):
         self.endTime        = None
         self.startTimeZMQ   = None
         self.endTimeZMQ     = None
-        self.rtnToMTA       = Milter.CONTINUE #Fail Closed
+        self.rtnToMTA       = milter.CONTINUE #Fail Closed
         self.alreadyScanned = False
         self.uuid           = str(uuid.uuid4())[-12:]
 
@@ -177,18 +183,18 @@ class LaikaMilter(Milter.Base):
             log = self.uuid+" Uncaught Exception in Abort"
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
         
-        return Milter.CONTINUE
+        return milter.CONTINUE
     
     
     def unknown(self, cmd):
         log = self.uuid+" Unknown Callback Received: "+str(cmd)
         self.logger.writeLog(syslog.LOG_DEBUG, "%s"%(str(log)))
-        return Milter.CONTINUE
+        return milter.CONTINUE
     
 
     # Start libmilter callbacks
     def hello(self, heloname):
-        returnval = Milter.CONTINUE
+        returnval = milter.CONTINUE
         try:
             self.logger.writeLog(syslog.LOG_DEBUG, "%s hello:%s client_addr:%s if_addr:%s" %(self.uuid, str(heloname), str(self._getClientAddr()), str(self._getIfAddr())))
             self.CUSTOMHELO = heloname
@@ -203,14 +209,14 @@ class LaikaMilter(Milter.Base):
                 self.__init__()
             self.startTime = time.time()
             self.startTimeDT = datetime.datetime.now()
-            if (self.milterConfig.mode == "shutdown"):
-                log = self.uuid+" Milter in Maint mode, returning [Sender:"+''.join(f)+"]" 
-                self.logger.writeLog(syslog.LOG_DEBUG, "%s"%(log))
+            if self.milterConfig.mode == "shutdown":
+                log = self.uuid+" milter in Maint mode, returning [Sender:"+''.join(f)+"]" 
+                self.logger.writeLog(syslog.LOG_DEBUG, "%s" % log)
                 return self.milterConfig.dispositionModes["InMaintMode".lower()] 
             
             log = self.uuid+" envFrom: "
             log += ''.join(f)
-            self.logger.writeLog(syslog.LOG_DEBUG, "%s"%(log))
+            self.logger.writeLog(syslog.LOG_DEBUG, "%s" % log)
             self.CUSTOMFROM = f
             
             self.CUSTOMFROM = self.CUSTOMFROM.replace("<", "")
@@ -224,7 +230,7 @@ class LaikaMilter(Milter.Base):
         except:
             log = self.uuid+" Uncaught Exception in EnvFrom"
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
-        return Milter.CONTINUE    #ALWAYS continue to gather the entire email
+        return milter.CONTINUE    #ALWAYS continue to gather the entire email
         
     def envrcpt(self,to,*str):
         try:
@@ -232,14 +238,14 @@ class LaikaMilter(Milter.Base):
             log = self.uuid+" envRcpt: "
             rcpt = ' '.join(self.CUSTOMORCPT)
             log += rcpt
-            self.logger.writeLog(syslog.LOG_DEBUG, "%s"%(log))
+            self.logger.writeLog(syslog.LOG_DEBUG, "%s" % log)
             self.receiver = rcpt
             self.receiver = self.receiver.replace("<", "") # clean the first "<" off the string 
             self.receiver = self.receiver.replace(">", "")
         except:
             log = self.uuid+" Uncaught Exception in EnvRcpt"
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
-        return Milter.CONTINUE
+        return milter.CONTINUE
         
         
     def header(self,name,val):
@@ -256,7 +262,7 @@ class LaikaMilter(Milter.Base):
         except:
             log = self.uuid+" Uncaught Exception in Header"
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
-        return Milter.CONTINUE
+        return milter.CONTINUE
         
         
     def eoh(self):
@@ -265,18 +271,18 @@ class LaikaMilter(Milter.Base):
         except:
             log = self.uuid+" Uncaught Exception in EOH"
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
-        return Milter.CONTINUE
+        return milter.CONTINUE
         
     def body(self,chunk):        # copy body to temp file
         try:
-            if (isinstance(chunk, str)):
+            if isinstance(chunk, str):
                 chunk = chunk.replace("\r\n", "\n")
             self.fpb.write(chunk)
             self.fpb.flush()
         except:
             log = self.uuid+" Uncaught Exception in Body"
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
-        return Milter.CONTINUE
+        return milter.CONTINUE
         
         
     def eom(self):
@@ -285,7 +291,7 @@ class LaikaMilter(Milter.Base):
             checklist = "%s_%s" %(str(self._getIfAddr()), str(self._getClientAddr()))
             if checklist in global_whitelist:
                 self.logger.writeLog(syslog.LOG_DEBUG, "%s ACCEPT ON WHITELIST: qid:%s client_addr:%s if_addr:%s" %(self.uuid, str(self.qid), str(self._getClientAddr()), str(self._getIfAddr())))
-                self.rtnToMTA = Milter.ACCEPT
+                self.rtnToMTA = milter.ACCEPT
             else:
                 if not self.alreadyScanned:
                     self._getBufferFromFP()#build the header
@@ -310,7 +316,7 @@ class LaikaMilter(Milter.Base):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             ERROR_INFO = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             ERROR =  "%s ERROR EOM: RETURNING DEFAULT (%s)   %s" % (self.uuid, self.rtnToMTA, ERROR_INFO)
-            print ERROR
+            print(ERROR)
             self.logger.writeLog(syslog.LOG_ERR, "%s"%(str(ERROR)))
         return self.rtnToMTA
         
@@ -332,13 +338,13 @@ class LaikaMilter(Milter.Base):
             
     #_addHeaders adds miltiple headers to the mail message sent to the user
     def _addHeaders(self):
-        if (self.milterConfig.ApplyMailscanResultHeader):
+        if self.milterConfig.ApplyMailscanResultHeader:
             self._addHeader(self.milterConfig.MailscanResultHeaderString, self.disposition)
         
-        if (self.milterConfig.ApplyCustomHeaders):
-            self._addHeader("X-%s-HELO" % (self.milterConfig.CustomHeaderBase), self.CUSTOMHELO)
-            self._addHeader("X-%s-FROM" % (self.milterConfig.CustomHeaderBase), self.sender)
-            self._addHeader("X-%s-ORCPT" % (self.milterConfig.CustomHeaderBase), self.receiver)
+        if self.milterConfig.ApplyCustomHeaders:
+            self._addHeader("X-%s-HELO" % self.milterConfig.CustomHeaderBase, self.CUSTOMHELO)
+            self._addHeader("X-%s-FROM" % self.milterConfig.CustomHeaderBase, self.sender)
+            self._addHeader("X-%s-ORCPT" % self.milterConfig.CustomHeaderBase, self.receiver)
             
     #_getMboxLine generates the Mbox line to be stored in the archive to disk
     def _getMboxLine(self):
@@ -373,7 +379,7 @@ class LaikaMilter(Milter.Base):
             numOpenFilesOutput = 0
             for file in os.listdir(fd_dir):
                 numOpenFilesOutput += 1
-            if (int(numOpenFilesOutput) > int(self.milterConfig.maxFiles)):
+            if int(numOpenFilesOutput) > int(self.milterConfig.maxFiles):
                 self.logger.writeLog(syslog.LOG_ERR, "Open Files: "+str(numOpenFilesOutput)+", Returning "+str(self.milterConfig.dispositionModes["OverLimit".lower()])+" to avoid shutdown at "+str(self.milterConfig.maxFiles))
                 okToContinue = False
             else:
@@ -382,14 +388,14 @@ class LaikaMilter(Milter.Base):
             self.logger.writeLog(syslog.LOG_ERR, "Value Error in checkOpenFiles")
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print "ERROR EOM  %s" % (repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            print("ERROR EOM  %s" % (repr(traceback.format_exception(exc_type, exc_value, exc_traceback))))
             self.logger.writeLog(syslog.LOG_ERR, "Error in checkOpenFiles")
         return okToContinue
             
     #_dispositionMessage main helper function to open dispositioner class to disposition message. 
     def _dispositionMessage(self):
         self.startTimeZMQ = time.time()
-        if (not self._checkOKToContinueWithOpenFiles()):
+        if not self._checkOKToContinueWithOpenFiles():
             self.disposition = "Over Process File Handle Limit"
             self.logger.writeLog(syslog.LOG_ERR, "Disposition: %s"%(str(self.disposition)))
             rtnToMTA = self.milterConfig.dispositionModes["OverLimit".lower()]
@@ -411,7 +417,7 @@ class LaikaMilter(Milter.Base):
     
     #_dispositionMessage_AttachmentHelper helps _dispositionMessage convert the attachment list to string. 
     def _dispositionMessage_AttachmentHelper(self):
-        if (len(self.attachments) > 80):
+        if len(self.attachments) > 80:
             commaLoc = self.attachments.find(",", 80, 300)   #Finds the comma that exists between 80 and 300 characters
             attachmentsReduced = self.attachments[:commaLoc] #\\
             self.attachments = attachmentsReduced            #== Reduces the string to the first comma after 80 chars and marks with truncated. 
@@ -460,7 +466,7 @@ class LaikaMilter(Milter.Base):
     
     #_getReturnToMTAValue convert the string returned by the dispositioner to actual milter return values defined by the milterConfig class
     def _getReturnToMTAValue(self, dispositioner):
-        if (dispositioner.strScanResult.lower() in self.milterConfig.dispositionModes):
+        if dispositioner.strScanResult.lower() in self.milterConfig.dispositionModes:
             rtnToMTA = self.milterConfig.dispositionModes[dispositioner.strScanResult.lower()]
         else: #Default if not included
             rtnToMTA = self.milterConfig.dispositionModes["default"]
@@ -470,13 +476,13 @@ class LaikaMilter(Milter.Base):
     
     #_getSpecialHeaderLines grabs headers worth logging
     def _getSpecialHeaderLines(self, lname, val):
-        if (lname == "subject"):
+        if lname == "subject":
             self.subject = val
-        if (lname == "message-id"):
+        if lname == "message-id":
             self.messageID = val
             self.messageID = self.messageID.replace("<", "")
             self.messageID = self.messageID.replace(">", "")
-        if (lname == "date"):
+        if lname == "date":
             try:
                 self.messageDate = formatdate(mktime_tz(parsedate_tz(val.split('\n')[0])), True)
             except:
@@ -489,7 +495,7 @@ class LaikaMilter(Milter.Base):
       
         
     def _logEachEnvelope(self):
-        while (len(self.CUSTOMORCPT)>0):
+        while len(self.CUSTOMORCPT)>0:
             individualRCPT = self.CUSTOMORCPT.pop()
             individualRCPT = individualRCPT.replace("<", "")
             individualRCPT = individualRCPT.replace(">", "")
@@ -554,10 +560,10 @@ class LaikaMilter(Milter.Base):
         self.fpb.write("\n")
             
 
-class Dispositioner():
-    '''
+class Dispositioner:
+    """
     Dispositioner: Class used to Dispostion (and with LaikaBOSS, determine response to MTA) input email
-    '''
+    """
     def __init__(self, logger):
         self.altConfig = None
         self.client    = None
@@ -570,7 +576,7 @@ class Dispositioner():
         self.scanServerToUse        = "None"
         self.numScanSigsMatched     = -1
         self.currentScanServerNum   = -1
-        self.milterConfig           = MilterConfig()
+        self.milterConfig           = milterConfig()
         if self.altConfig:
             self.milterConfig.configFileLoc = self.altConfig
         self.milterConfig.loadAll()
@@ -592,7 +598,7 @@ class Dispositioner():
         
             
     def _getNextScanServer(self):
-        if (len(self.milterConfig.servers)> 1):
+        if len(self.milterConfig.servers)> 1:
             self.currentScanServerNum = (self.currentScanServerNum + 1) % (len(self.milterConfig.servers) - 1)
             self.scanServerToUse = self.milterConfig.servers[self.currentScanServerNum]
         else:
@@ -604,7 +610,7 @@ class Dispositioner():
         randServer = 0
         server = ""
         numServers = len(self.milterConfig.servers)
-        if (numServers>1):
+        if numServers>1:
             randServer = random.randint(0, numServers-1)
         self.scanServerToUse = self.milterConfig.servers[randServer]
         return self.scanServerToUse
@@ -613,7 +619,7 @@ class Dispositioner():
     def _zmqGetFlags(self, numRetries, milterContext):
         REQUEST_TIMEOUT = milterContext.milterConfig.zmqTimeout
         gotResponseFromScanner=-1
-        if (len(self.milterConfig.servers)>0):#servers Available
+        if len(self.milterConfig.servers)>0:#servers Available
             SERVER_ENDPOINT = self._getNextScanServer()
             gotResponseFromScanner=-1 #Default No Response
             gotResponseFromScanner = self._zmqSendBuffer(milterContext, numRetries, REQUEST_TIMEOUT, SERVER_ENDPOINT)
@@ -662,7 +668,7 @@ class Dispositioner():
         
         return gotResponseFromScanner
 
-class log2syslog():
+class log2syslog:
     def __init__(self, name, facility):
         syslog.openlog(name, 0, facility)
         
@@ -673,19 +679,19 @@ class log2syslog():
         syslog.closelog()
         
 
-class MilterConfig():
-    '''
-    MilterConfig: Class used to load config file
-    
-    Start: 1) Instantiate with new MilterConfig()  
+class milterConfig:
+    """
+    milterConfig: Class used to load config file
+
+    Start: 1) Instantiate with new milterConfig()
        2) Load config file
-        2.1) loadAll: loads all sections (listed below) of the config file 
+        2.1) loadAll: loads all sections (listed below) of the config file
         2.2) loadConfig: loads COMMON section of the config file
         2.3) loadDispositionModes: loads DispositionMode section of the config file
         2.4) loadHeaderOptions: loads HeaderOptions section of the config file
         2.5) loadScanServers: loads ScanServers section of the config file
-    
-    '''
+
+    """
     
     
     def __init__(self):
@@ -710,7 +716,7 @@ class MilterConfig():
         self.maxLoadAttempts    = 2
         self.loadError          = False
         self.dispositionModes   = {}
-        self.dispositionModes["default"] = Milter.CONTINUE
+        self.dispositionModes["default"] = milter.CONTINUE
         
         
     def loadAll(self):
@@ -722,13 +728,13 @@ class MilterConfig():
         self.loadHeaderOptions()
         
         #Allow config file to reload itself.  If a new config file gets written, it may be unreadable while the new file is written to disk.  Sleep 1 sec and try again when file write is complete. 
-        if ((self.loadError) and (self.loadAttempt <= self.maxLoadAttempts)):
+        if self.loadError and (self.loadAttempt <= self.maxLoadAttempts):
             log = "Error loading Config File from loadAll, trying again"
             logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
             logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
             time.sleep(1)
             self.loadAll()
-        elif ((self.loadError) and (self.loadAttempt > self.maxLoadAttempts)):
+        elif self.loadError and (self.loadAttempt > self.maxLoadAttempts):
             log = "Error loading Config File from loadAll, using Defaults"
             logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
             logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
@@ -739,8 +745,8 @@ class MilterConfig():
         try:
             Config.read(self.configFileLoc)
             self.socketname     = Config.get('COMMON', 'socketname')
-            self.milterName     = Config.get('COMMON', 'MilterName')
-            self.milterInstance = Config.get('COMMON', 'MilterInstance')
+            self.milterName     = Config.get('COMMON', 'milterName')
+            self.milterInstance = Config.get('COMMON', 'milterInstance')
             self.mode           = Config.get('COMMON', 'mode')
             self.zmqMaxRetry    = int(Config.get('COMMON', 'zmqMaxRetry'))
             self.zmqTimeout     = int(Config.get('COMMON', 'zmqTimeout'))
@@ -751,7 +757,7 @@ class MilterConfig():
             self.storeDir       = Config.get('ArchiveOptions', 'storeDir')
             self.customFolderDateFormat = Config.get('ArchiveOptions', 'customFolderDateFormat')
         except ConfigParser.NoSectionError:
-            if (self.loadAttempt >= self.maxLoadAttempts):
+            if self.loadAttempt >= self.maxLoadAttempts:
                 log = "Error loading Config File for COMMON config, USING DEFAULTS"
                 logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
                 logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
@@ -771,7 +777,7 @@ class MilterConfig():
                     
                     
         except ConfigParser.NoSectionError:
-            if (self.loadAttempt >= self.maxLoadAttempts):
+            if self.loadAttempt >= self.maxLoadAttempts:
                 log = "Error loading Config File for DispositionMode config, USING DEFAULTS"
                 logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
                 logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
@@ -790,7 +796,7 @@ class MilterConfig():
             self.ApplyMailscanResultHeader  = self._convertTrueFalse(Config.get('HeaderOptions', 'ApplyMailscanResultHeader'))
             self.MailscanResultHeaderString = Config.get('HeaderOptions', 'MailscanResultHeaderString')
         except ConfigParser.NoSectionError:
-            if (self.loadAttempt >= self.maxLoadAttempts):
+            if self.loadAttempt >= self.maxLoadAttempts:
                 log = "Error loading Config File for HeaderOptions config, USING DEFAULTS"
                 logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
                 logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
@@ -800,7 +806,7 @@ class MilterConfig():
                 logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
                 logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
         except ConfigParser.NoOptionError:
-            if (self.loadAttempt >= self.maxLoadAttempts):
+            if self.loadAttempt >= self.maxLoadAttempts:
                 log = "Error loading Config File for HeaderOptions config, USING DEFAULTS"
                 logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
                 logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
@@ -818,7 +824,7 @@ class MilterConfig():
             for server in servers:
                 self.servers.append(server[1])
         except ConfigParser.NoSectionError:
-            if (self.loadAttempt >= self.maxLoadAttempts):
+            if self.loadAttempt >= self.maxLoadAttempts:
                 log = "Error loading Config File for ScanServers config, USING DEFAULTS"
                 logger = log2syslog(self.milterName, syslog.LOG_LOCAL0)
                 logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
@@ -830,43 +836,43 @@ class MilterConfig():
                 
                 
     def _convertDispositionMode(self, strMode):
-        convertedMode = Milter.CONTINUE
-        if(strMode == "ACCEPT"):
-            convertedMode = Milter.ACCEPT
-        elif(strMode == "CONTINUE"):
-            convertedMode = Milter.CONTINUE
-        elif(strMode == "REJECT"):
-            convertedMode = Milter.REJECT
-        elif(strMode == "DISCARD"):
-            convertedMode = Milter.DISCARD
-        elif(strMode == "TEMPFAIL"):
-            convertedMode = Milter.TEMPFAIL
+        convertedMode = milter.CONTINUE
+        if strMode == "ACCEPT":
+            convertedMode = milter.ACCEPT
+        elif strMode == "CONTINUE":
+            convertedMode = milter.CONTINUE
+        elif strMode == "REJECT":
+            convertedMode = milter.REJECT
+        elif strMode == "DISCARD":
+            convertedMode = milter.DISCARD
+        elif strMode == "TEMPFAIL":
+            convertedMode = milter.TEMPFAIL
             
         return convertedMode
     
     def _unconvertDispositionMode(self, convertedMode):
-        '''
+        """
         convert integer value of rtnToMTA to back to string
-        '''
+        """
         strMode = ""
-        if(convertedMode == Milter.ACCEPT):
+        if convertedMode == milter.ACCEPT:
             strMode = "ACCEPT"
-        elif(convertedMode == Milter.CONTINUE):
+        elif convertedMode == milter.CONTINUE:
             strMode = "CONTINUE"
-        elif(convertedMode == Milter.REJECT):
+        elif convertedMode == milter.REJECT:
             strMode = "REJECT"
-        elif(convertedMode == Milter.DISCARD):
+        elif convertedMode == milter.DISCARD:
             strMode = "DISCARD"
-        elif(convertedMode == Milter.TEMPFAIL):
+        elif convertedMode == milter.TEMPFAIL:
             strMode = "TEMPFAIL"
         return strMode
         
         
     def _convertTrueFalse(self, input):
         convertedValue = False
-        if (input.upper() == "TRUE"):
+        if input.upper() == "TRUE":
             convertedValue = True
-        elif(input.upper == "FALSE"):
+        elif input.upper == "FALSE":
             convertedValue = False
         else:
             covnertedValue = "Error"
@@ -882,15 +888,15 @@ if __name__ == "__main__":
     altConfig = None
     if len(sys.argv) == 2:
         altConfig = sys.argv[1]
-        print "Config: "+altConfig
+        print("Config: "+altConfig)
     
-    milterConfig = MilterConfig()
+    milterConfig = milterConfig()
     
     
     if altConfig:
-        print "using alternative config path: %s" % altConfig
+        print("using alternative config path: %s" % altConfig)
         if not os.path.exists(altConfig):
-            print "the provided config path is not valid, exiting"
+            print("the provided config path is not valid, exiting")
         else:
             milterConfig.configFileLoc = altConfig
             
@@ -909,13 +915,13 @@ if __name__ == "__main__":
                            global_whitelist["%s_%s" %(MTA_address,exclusion_address)] = None
     except IOError:
         global_whitelist = {}
-        logger.writeLog(syslog.LOG_ERR, "IOError: Unable to load whitelist from config file: %s"%(milterConfig.heloWhitelist))
+        logger.writeLog(syslog.LOG_ERR, "IOError: Unable to load whitelist from config file: %s" % milterConfig.heloWhitelist)
     except: 
         global_whitelist = {}
-        logger.writeLog(syslog.LOG_ERR, "Unknown error while loading whitelist: %s"%(milterConfig.heloWhitelist))
+        logger.writeLog(syslog.LOG_ERR, "Unknown error while loading whitelist: %s" % milterConfig.heloWhitelist)
     
     
-    logger.writeLog(syslog.LOG_DEBUG, "%s Starting" % (milterConfig.milterInstance))
+    logger.writeLog(syslog.LOG_DEBUG, "%s Starting" % milterConfig.milterInstance)
             
     myID = os.getuid()
     grID = os.getgid()
@@ -927,18 +933,18 @@ if __name__ == "__main__":
     maxNumOpenFiles = resource.getrlimit(resource.RLIMIT_NOFILE)
     logger.writeLog(syslog.LOG_DEBUG, "%s File Handle Limits (soft, hard): %s"%(milterConfig.milterInstance, str(maxNumOpenFiles)))
         
-    #Configure  LaikaMilter factory
-    Milter.factory = LaikaMilter
-    Milter.set_flags(Milter.CHGBODY + Milter.CHGHDRS + Milter.ADDHDRS)
+    #Configure  Laikamilter factory
+    milter.factory = Laikamilter
+    milter.set_flags(milter.CHGBODY + milter.CHGHDRS + milter.ADDHDRS)
     sys.stdout.flush()
     
-    #Attempt to start Milter factory. If milter cannot start, is is usually because there is another milter running. 
+    #Attempt to start milter factory. If milter cannot start, is is usually because there is another milter running. 
     try:
-        Milter.runmilter(milterConfig.milterName,milterConfig.socketname,240)
-    except Milter.error:
+        milter.runmilter(milterConfig.milterName,milterConfig.socketname,240)
+    except milter.error:
         log = "Could not open port "+milterConfig.socketname+".  Another milter instance may be running."
         logger.writeLog(syslog.LOG_ERR, "%s"%(str(log)))
     
-    logger.writeLog(syslog.LOG_DEBUG, "%s Shutting Down" % (milterConfig.milterInstance))
+    logger.writeLog(syslog.LOG_DEBUG, "%s Shutting Down" % milterConfig.milterInstance)
     logger.closeLog()
     

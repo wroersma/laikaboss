@@ -31,15 +31,15 @@ class ResultStub:
         self.files = {}
 
 class LOG_FLUENT(SI_MODULE):
-    '''Laika module for logging scan results using fluentd.'''
+    """Laika _module for logging scan results using fluentd."""
 
     def __init__(self,):
-        '''Main constructor'''
+        """Main constructor"""
         self.module_name = "LOG_FLUENT"
         self._senders = {}
 
     def _run(self, scanObject, result, depth, args):
-        """Main module execution. Logs the scan result to fluentd."""
+        """Main _module execution. Logs the scan result to fluentd."""
         tag  = get_option(args, "tag",  "fluent_tag",  "laikaboss.log_fluent")
         host = get_option(args, "host", "fluent_host", "localhost")
         port = int(get_option(args, "port", "fluent_port", 24224))
@@ -56,7 +56,7 @@ class LOG_FLUENT(SI_MODULE):
         return []
 
     def _close(self,):
-        '''Laika framework destructor'''
+        """Laika framework destructor"""
         for sender in self._senders.itervalues():
             if sender.pendings:
                 sender.emit('flush',
@@ -68,7 +68,7 @@ class LOG_FLUENT(SI_MODULE):
                         'Failed to flush buffer. Log events lost.')
 
     def _get_sender(self, tag, host, port, bufmax, timeout):
-        '''
+        """
         Get the Fluentd sender for the given arguments.
 
         Arguments:
@@ -81,7 +81,7 @@ class LOG_FLUENT(SI_MODULE):
 
         Returns:
         A FluentSender with the given configuration.
-        '''
+        """
         sender = None
         key = "%s%s%d%d%f" % (tag, host, port, bufmax, timeout)
         if key in self._senders:
@@ -92,7 +92,7 @@ class LOG_FLUENT(SI_MODULE):
         return sender
 
     def _parse_log_record(self, result):
-        '''
+        """
         Construct a log record from data within the scan result.
 
         Arguments:
@@ -100,7 +100,7 @@ class LOG_FLUENT(SI_MODULE):
 
         Returns:
         A log record respresenting the scan result.
-        '''
+        """
         # Build the results portion of the log record. This will be a list of
         # dictionaries, where each dictionary is the result of a single buffer's
         # scan. The list will contain all of the buffers that were exploded from
@@ -124,7 +124,7 @@ class LOG_FLUENT(SI_MODULE):
         return log_record
 
     def _log_record_strainer(self, thing):
-        '''
+        """
         Prepare object for recording to log. The record must be able to be
         marshalled into JSON without using custom encoders, since this
         marshalling occurs after the log record has been emitted.
@@ -134,7 +134,7 @@ class LOG_FLUENT(SI_MODULE):
 
         Returns:
         The object converted into a state that can be emitted to the log.
-        '''
+        """
         thing_type = type(thing)
         if thing_type in [list, set, frozenset]:
             new_thing = []

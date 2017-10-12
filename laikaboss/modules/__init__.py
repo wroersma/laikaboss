@@ -22,23 +22,25 @@ from laikaboss.objectmodel import QuitScanException, \
 
 # This block of code looks for all py files in the current directory
 # and imports the class with the same name (except uppercase) as the file.
-# This ensures that the dispatcher can access every module in this folder without 
+# This ensures that the dispatcher can access every _module in this folder without
 # any further configuration needed.
+
+
 def log_debug(message):
     syslog.syslog(syslog.LOG_DEBUG, "DEBUG %s" % message)
 
-for module in os.listdir(os.path.dirname(__file__)):
+for _module in os.listdir(os.path.dirname(__file__)):
     try:
-        if module == '__init__.py' or module[-3:] != '.py':
+        if _module == '__init__.py' or _module[-3:] != '.py':
             continue
-        _temp = __import__(module[:-3], locals(), globals(), [module[:-3].upper()], -1)
-        globals()[module[:-3].upper()] = getattr(_temp, module[:-3].upper())
+        _temp = __import__(_module[:-3], locals(), globals(), [_module[:-3].upper()], -1)
+        globals()[_module[:-3].upper()] = getattr(_temp, _module[:-3].upper())
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        logging.exception("Import Exception for %s module: %s" % (module ,repr(traceback.format_exception(exc_type, exc_value, exc_traceback))))
-        log_debug("Import Exception for %s module: %s" % (module ,repr(traceback.format_exception(exc_type, exc_value, exc_traceback))))
+        logging.exception("Import Exception for %s _module: %s" % (_module, repr(traceback.format_exception(exc_type, exc_value, exc_traceback))))
+        log_debug("Import Exception for %s _module: %s" % (_module, repr(traceback.format_exception(exc_type, exc_value, exc_traceback))))
         continue
-del module
+del _module
 del _temp

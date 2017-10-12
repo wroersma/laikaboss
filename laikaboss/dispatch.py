@@ -11,16 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
+#
+import sys
 import time
 import logging
-import Queue
-from util import get_scanObjectUID, listToSSV, yara_on_demand, \
+if sys.version_info >= (3, 0):
+    import queue
+else:
+    import Queue as queue
+
+from .util import get_scanObjectUID, listToSSV, yara_on_demand, \
                  log_module, log_module_error, getObjectHash, \
                  uniqueList, get_module_arguments, getRootObject
-from objectmodel import ScanObject, QuitScanException, GlobalScanTimeoutError
+from .objectmodel import ScanObject, QuitScanException, GlobalScanTimeoutError
 from laikaboss import modules
-import sys
 import traceback
 from laikaboss import config
 
@@ -30,20 +34,20 @@ from interruptingcow import timeout
 module_pointers = {}
 
 def _run_module(sm, scanObject, result, depth, args, earlyQuitTime=0):
-    '''
-    Description: The Dispatch function uses this private method to run a specific module against
+    """
+    Description: The Dispatch function uses this private method to run a specific _module against
                  an object. This method recursively calls the Dispatch method for any items
-                 returned by a module.
+                 returned by a _module.
      Arguments:
-      - sm: a string containing the name of a scan module
+      - sm: a string containing the name of a scan _module
       - scanObject: the current object being scanned
       - result: collects scan results of all objects being scanned in a dictionary
       - depth: every time dispatch is called, depth is increased by 1. may be used to limit recursion.
-      - args: a dictionary containing arguments for a module provided by the Dispatcher
-    '''
-    logging.debug("si_dispatch - Attempting to run module %s against - uid: %s, filename %s with args %s" % 
+      - args: a dictionary containing arguments for a _module provided by the Dispatcher
+    """
+    logging.debug("si_dispatch - Attempting to run _module %s against - uid: %s, filename %s with args %s" %
                       (sm,get_scanObjectUID(scanObject),scanObject.filename,repr(args)))
-    # Attempt the acquire the module given the name provided by the Dispatcher
+    # Attempt the acquire the _module given the name provided by the Dispatcher
     sm = sm.upper()
     if sm not in module_pointers:
         if hasattr(modules, sm):
@@ -61,21 +65,21 @@ def _run_module(sm, scanObject, result, depth, args, earlyQuitTime=0):
                 logging.debug(errorText)
                 return
         else:
-            logging.debug("module doesn't exist: %s" % sm)
+            logging.debug("_module doesn't exist: %s" % sm)
             log_module_error("si_dispatch",
                              scanObject,
                              result,
-                             "module not found: %s" % sm)
+                             "_module not found: %s" % sm)
             return
     newscan = module_pointers[sm] 
 
-    #  Add the current scan module to the list of scan modules run against this object
+    #  Add the current scan _module to the list of scan modules run against this object
     scanObject.scanModules.append(sm)
-    # Run the module
+    # Run the _module
     moduleResult = newscan.run(scanObject, result, depth, args)
     if earlyQuitTime and earlyQuitTime < time.time():
         raise GlobalScanTimeoutError()
-    # Perform a recursive scan for each item returned by the module (may be none)
+    # Perform a recursive scan for each item returned by the _module (may be none)
     for moduleObject in moduleResult:
         moduleObject.externalVars.source = result.source
         moduleObject.externalVars.parent = get_scanObjectUID(scanObject) 
@@ -85,17 +89,17 @@ def _run_module(sm, scanObject, result, depth, args, earlyQuitTime=0):
         moduleObject.externalVars.flags = scanObject.flags
         Dispatch(moduleObject.buffer, result, depth, externalVars=moduleObject.externalVars)
 
-def _conditional_scan(scanObject, externalVars, result, depth):    
-    '''
-    Description: This function performs a second pass scan of an object based on the results of a 
-                 previous scan only. The yara rules look at the flags applied to this object and 
-                 determine any additional scanning that may need to be performed based on these 
+def _conditional_scan(scanObject, externalVars, result, depth):
+    """
+    Description: This function performs a second pass scan of an object based on the results of a
+                 previous scan only. The yara rules look at the flags applied to this object and
+                 determine any additional scanning that may need to be performed based on these
                  flags.
     Arguments:
      - scanObject: the current object being scanned
      - result: collects scan results of all objects being scanned in a dictionary
      - depth: every time dispatch is called, depth is increased by 1. may be used to limit recursion.
-    '''
+    """
     # Attempt to disposition based on flags from the first scan
     try:
         logging.debug("attempting conditional disposition on %s with %s uID: %s parent: %s" % (scanObject.filename, listToSSV(scanObject.flags), get_scanObjectUID(scanObject), scanObject.parent))
@@ -111,7 +115,7 @@ def _conditional_scan(scanObject, externalVars, result, depth):
                         'ext_depth': depth or 0
                     }
         yresults = yara_on_demand(config.yaraconditionalrules, listToSSV(scanObject.flags), externals)
-        moduleQueue = _get_module_queue(yresults, result, scanObject, "Conditional Rules")
+        modulequeue = _get_module_queue(yresults, result, scanObject, "Conditional Rules")
     except (QuitScanException, GlobalScanTimeoutError):
         raise
     except Exception:
@@ -119,19 +123,19 @@ def _conditional_scan(scanObject, externalVars, result, depth):
         log_module_error("si_dispatch", scanObject, result, "error during conditional_scan: %s" % traceback.format_exc())
         return
     # Recusively call the Dispatcher if any conditional scans need to be performed.
-    if not moduleQueue.empty():
+    if not modulequeue.empty():
         Dispatch(scanObject.buffer, result, depth, 
                     scanObject=scanObject, 
-                    extScanModules=moduleQueue, 
+                    extScanModules=modulequeue, 
                     conditional=True) 
 
 def _addExtMetadata(scanObject, data):
-    '''
+    """
     Description: Wrapper function around util function to facilitate adding external metadata.
     Arguments:
      - scanObject: the current object being scanned
      - data: Data to be appended to the scanObject
-    '''
+    """
 
     # If the data is a string or list, add it as a single value to the 'data' key
     if isinstance(data, str) or isinstance(data, list):
@@ -145,15 +149,15 @@ def _addExtMetadata(scanObject, data):
         scanObject.addMetadata("EXTERNAL", "object", repr(data))
  
 def _gather_metadata(buffer, externalVars, result, depth, maxBytes):
-    '''
+    """
     Description: Helper function to set up a scanObject from various metadata sources.
-    Arguments:  
+    Arguments:
      - buffer: the binary contents of the current object
      - externalVars: variables passed in from the caller or other modules
      - result: collects scan results of all objects being scanned in a dictionary
      - depth: every time dispatch is called, depth is increased by 1. may be used to limit recursion.
      - extMetaData: information provided externally that will be attached as metadata to the scanObject
-    '''
+    """
     # Set up the object.
 
     contentType = externalVars.contentType if externalVars.contentType else []
@@ -192,11 +196,11 @@ def _gather_metadata(buffer, externalVars, result, depth, maxBytes):
     return scanObject
 
 def _get_module_queue(yresults, result, scanObject, metaLabel):
-    '''
+    """
     Description: Takes the results from a dispatch yara scan and creates a priority queue from them.
                  The function also adds dispatch flags if they exist in the rule.
-    '''
-    moduleQueue = Queue.PriorityQueue() 
+    """
+    modulequeue = queue.Priorityqueue() 
     dispatchFlags = []
     parentDispatchFlags = []
 
@@ -209,7 +213,7 @@ def _get_module_queue(yresults, result, scanObject, metaLabel):
             else:
                 priority = int(config.defaultmodulepriority)
             scanObject.addMetadata("DISPATCH", metaLabel, "%s (%i)" % (str(yr), priority))
-            moduleQueue.put((priority, uniqueList(yr.meta['scan_modules'].split())))
+            modulequeue.put((priority, uniqueList(yr.meta['scan_modules'].split())))
         if 'flags' in yr.meta:
             dispatchFlags.extend(yr.meta['flags'].split())
         if 'parent_flags' in yr.meta:
@@ -218,18 +222,18 @@ def _get_module_queue(yresults, result, scanObject, metaLabel):
             scanObject.fileType.append(yr.meta['file_type'])
     dispatchFlags = set(dispatchFlags)
     for df in dispatchFlags:
-        scanObject.addFlag("dispatch::%s" % (df))
+        scanObject.addFlag("dispatch::%s" % df)
     if scanObject.parent in result.files:
         for pdf in parentDispatchFlags:
-            result.files[scanObject.parent].addFlag("dispatch::%s" % (pdf))
+            result.files[scanObject.parent].addFlag("dispatch::%s" % pdf)
 
-    return moduleQueue
+    return modulequeue
 
-def _process_module_queue(moduleQueue, result, depth, scanObject, earlyQuitTime=0):
-    '''
-    Description: Takes a priority module queue and runs each module in the appropriate order.
-                 Each module is tracked for uniqueness to prevent redundancy.
-    '''
+def _process_module_queue(modulequeue, result, depth, scanObject, earlyQuitTime=0):
+    """
+    Description: Takes a priority _module queue and runs each _module in the appropriate order.
+                 Each _module is tracked for uniqueness to prevent redundancy.
+    """
 
     MAXDEPTH = 0
     if hasattr(config, 'maxdepth'):
@@ -251,13 +255,13 @@ def _process_module_queue(moduleQueue, result, depth, scanObject, earlyQuitTime=
             break
 
         # Read until the queue is empty
-        if moduleQueue.empty(): 
+        if modulequeue.empty(): 
             logging.debug("Module run queue is empty") 
             break
-        scanModules = moduleQueue.get()[1]
+        scanModules = modulequeue.get()[1]
         for sm in scanModules:
             if sm in moduleSeen: 
-                logging.debug("Already ran %s, continuing to the next module" % (sm))
+                logging.debug("Already ran %s, continuing to the next _module" % sm)
                 continue
             module, args = get_module_arguments(sm)
             _run_module(module, scanObject, result, depth, args, earlyQuitTime)
@@ -265,7 +269,7 @@ def _process_module_queue(moduleQueue, result, depth, scanObject, earlyQuitTime=
 
 def close_modules():
     """
-    Description: Module callback API caller to close down (destruct) each module safely.
+    Description: Module callback API caller to close down (destruct) each _module safely.
     """
     for module_name, module_pointer in module_pointers.items():
         module_pointer.close()
@@ -285,7 +289,7 @@ def Dispatch(buffer, result, depth, externalVars=None,
                                        conditional=False ):
     """
     Description: By default, this function uses yara to disposition a buffer and determine what scan modules
-                 should be run against it. The function may be called recursively if a scan module returns 
+                 should be run against it. The function may be called recursively if a scan _module returns
                  additional buffers to scan. The function collects all results into the original result object
                  passed in by the caller for easy retrieval.
     Arguments: (* denotes OPTIONAL parameters):
@@ -317,12 +321,12 @@ def Dispatch(buffer, result, depth, externalVars=None,
         MAXBYTES= int(config.dispatchmaxbytes)
         if MAXBYTES < 0:
             MAXBYTES = 0
-        logging.debug('setting dispatch byte limit to %i' % (MAXBYTES))
+        logging.debug('setting dispatch byte limit to %i' % MAXBYTES)
 
     #
     #  This branch is designed for first-pass scanning where file type and scan modules are unknown
     #  Yara is used to disposition the file and determine which modules should be run against it
-    #  Using the result of each module, it is determined (using a separate yara scan on the flags) 
+    #  Using the result of each _module, it is determined (using a separate yara scan on the flags)
     #  whether or not a conditional scan needs to be run. 
     if extScanModules is None:
 
@@ -333,7 +337,7 @@ def Dispatch(buffer, result, depth, externalVars=None,
         depth += 1        
 
         logging.debug("si_dispatch - Attempting to dispatch - uid: %s, filename: %s, \
-source module: %s" % (get_scanObjectUID(scanObject), 
+source _module: %s" % (get_scanObjectUID(scanObject),
                        externalVars.filename, 
                        externalVars.sourceModule))
         #  check to see if this object has a parent, get the modules run against the parent if it exists
@@ -354,12 +358,12 @@ source module: %s" % (get_scanObjectUID(scanObject),
         yresults = yara_on_demand(config.yaradispatchrules, buffer, externals, MAXBYTES)
         if config.modulelogging:
             log_module("MSG", 'si_dispatch', time.time() - dispatch_rule_start, scanObject, result, "")
-        moduleQueue = _get_module_queue(yresults, result, scanObject, "Rules")
+        modulequeue = _get_module_queue(yresults, result, scanObject, "Rules")
 
 
         with _with_conditional(skip_timeout) or timeout(global_scan_timeout, exception=GlobalScanTimeoutError):
             try:
-                _process_module_queue(moduleQueue, result, depth, scanObject, global_scan_timeout_endtime)
+                _process_module_queue(modulequeue, result, depth, scanObject, global_scan_timeout_endtime)
                 _conditional_scan(scanObject, externalVars, result, depth)
             except GlobalScanTimeoutError:
                 # If the scan times out, add a flag and continue as a normal error

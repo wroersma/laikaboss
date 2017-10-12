@@ -20,14 +20,14 @@ from laikaboss.util import get_option
 import zipfile
 
 class EXPLODE_ZIP(SI_MODULE):
-    '''Laika module for exploding buffers out of zipped files.'''
+    """Laika _module for exploding buffers out of zipped files."""
 
     def __init__(self,):
-        '''Main constructor'''
+        """Main constructor"""
         self.module_name = "EXPLODE_ZIP"
 
     def _run(self, scanObject, result, depth, args):
-        '''Laika framework module logic execution'''
+        """Laika framework _module logic execution"""
         moduleResult = [] 
 
         # Determine file limit from arguments
@@ -65,7 +65,7 @@ class EXPLODE_ZIP(SI_MODULE):
     #  they may be called more than once in the lifetime of the class
     @staticmethod
     def _unzip_file(self, moduleResult, file, scanObject, result, password, file_limit, byte_limit):
-        '''
+        """
         Attempts to unzip the file, looping through the namelist and adding each
         object to the ModuleResult. We add the filename from the archive to the
         external variables so it is available during recursive scanning.
@@ -74,7 +74,7 @@ class EXPLODE_ZIP(SI_MODULE):
 
         Arguments:
         moduleResult -- an instance of the ModuleResult class created above
-        file -- a file object created using the buffer passed into this module
+        file -- a file object created using the buffer passed into this _module
         scanObject -- an instance of the ScanObject class, created by the dispatcher
         result -- an instance of the ScanResult class, created by the caller
         password -- the password for the zipfile, if any
@@ -83,7 +83,7 @@ class EXPLODE_ZIP(SI_MODULE):
 
         Returns:
         Nothing, modification made directly moduleResult.
-        '''
+        """
         try:
             zf = zipfile.ZipFile(file)
             if password:
@@ -124,10 +124,10 @@ class EXPLODE_ZIP(SI_MODULE):
 
     @staticmethod
     def _fix_bad_zip(file, buffer):
-        '''
-        Python's zipfile module does not tolerate extra data after the central directory
+        """
+        Python's zipfile _module does not tolerate extra data after the central directory
         signature in a zip archive. This function truncates the file so that the python
-        zipfile module can properly extract the file.
+        zipfile _module can properly extract the file.
 
         Arguments:
         file -- a python file object containing the bad zip file
@@ -135,9 +135,9 @@ class EXPLODE_ZIP(SI_MODULE):
 
         Returns:
         Nothing, modification made directly to the file object.
-        '''
+        """
         pos = buffer.find('\x50\x4b\x05\x06') # End of central directory signature
-        if (pos > 0):
+        if pos > 0:
             logging.debug("Truncating file at location %s", str(pos + 22))
             file.seek(pos + 22)   # size of 'ZIP end of central directory record'
             file.truncate()

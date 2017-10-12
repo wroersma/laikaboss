@@ -20,12 +20,12 @@ import os
 
 
 class META_EXIFTOOL(SI_MODULE):
-    '''
+    """
     Input: A file that is supported by EXIF Tool
-    Output: None. Adds module metadata about the object.
+    Output: None. Adds _module metadata about the object.
 
-    Purpose: Extract metadata from various types of objects that EXIF Tool supports.   
-    '''
+    Purpose: Extract metadata from various types of objects that EXIF Tool supports.
+    """
     def __init__(self,):
         self.module_name = "META_EXIFTOOL" 
         self.TEMP_DIR = '/tmp/laikaboss_tmp'

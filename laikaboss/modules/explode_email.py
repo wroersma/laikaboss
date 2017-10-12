@@ -39,7 +39,7 @@ class EXPLODE_EMAIL(SI_MODULE):
                     filename = 'e_email_%s_%s' % (p.get_content_type(),i)
                 else:
                     attachments.append(filename)
-                logging.debug("explode email: found filename: %s" % (filename))
+                logging.debug("explode email: found filename: %s" % filename)
                 moduleResult.append(ModuleObject(buffer=childBuffer, 
                                                  externalVars=ExternalVars(filename=filename,
                                                                            contentType=p.get_content_maintype())))

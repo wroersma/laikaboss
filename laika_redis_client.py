@@ -28,53 +28,56 @@ from laikaboss.objectmodel import ExternalObject, ExternalVars
 from laikaboss.constants import level_minimal
 from laikaboss.clientLib import Client
 
+
 def handler(signum, frame):
-    '''
+    """
     Signal handler for graceful exit.
-    '''
-    print "\n\nSignal %s received. Exiting." % (str(signum))
+    """
+    print("\n\nSignal %s received. Exiting." % (str(signum)))
     sys.exit(0)
 
+
 def delete_keys(redis_conn, key):
-    '''
+    """
     Delete keys from Redis once they have been used.
-    '''
-    redis_conn.delete("%s_buf" % (key))
-    redis_conn.delete("%s_meta" % (key))
+    """
+    redis_conn.delete("%s_buf" % key)
+    redis_conn.delete("%s_meta" % key)
+
 
 def main(laika_broker, redis_host, redis_port):
     # Register signal handler
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)
-    
+
     # Connect to Redis
     r = redis.StrictRedis(host=redis_host, port=redis_port)
-    
+
     # Create Laika BOSS client object
     client = Client(laika_broker, async=True)
-    
+
     while True:
         # pop next item off queue
         q_item = r.blpop('suricata_queue', timeout=0)
         key = q_item[1]
 
-        print "Popped object: %s" % (key)
-    
+        print("Popped object: %s" % key)
+
         # look up file buffer
-        file_buffer = r.get("%s_buf" % (key))
+        file_buffer = r.get("%s_buf" % key)
 
         # look up file file meta
-        file_meta = r.get("%s_meta" % (key))
+        file_meta = r.get("%s_meta" % key)
 
         if not file_buffer or not file_meta:
-            print "File buffer or meta for key: %s not found. Skipping this object." % (key)
+            print("File buffer or meta for key: %s not found. Skipping this object." % key)
             delete_keys(r, key)
             continue
-    
+
         try:
             file_meta_dict = json.loads(file_meta)
         except:
-            print "JSON decode error for key: %s. Skipping this object." % (key)
+            print("JSON decode error for key: %s. Skipping this object." % key)
             delete_keys(r, key)
             continue
 
@@ -91,33 +94,34 @@ def main(laika_broker, redis_host, redis_port):
             content_type = file_meta_dict['http_response'].get('Content-Type', [])
         else:
             content_type = []
- 
+
         externalObject = ExternalObject(buffer=file_buffer,
-                externalVars=ExternalVars(filename=filename,
-                    source="%s-%s" % ("suricata", "redis"),
-                    extMetaData=file_meta_dict,
-                    contentType=content_type),
-                level=level_minimal)
-    
+                                        externalVars=ExternalVars(filename=filename,
+                                                                  source="%s-%s" % ("suricata", "redis"),
+                                                                  extMetaData=file_meta_dict,
+                                                                  contentType=content_type),
+                                        level=level_minimal)
+
         # send to Laika BOSS for async scanning - no response expected
         client.send(externalObject)
 
-        print "Sent %s for scanning...\n" % (key)
+        print("Sent %s for scanning...\n" % key)
 
         # cleanup
         delete_keys(r, key)
 
+
 if __name__ == '__main__':
     parser = ArgumentParser(description=
-            '''
+                            '''
             Middleware script for pulling extracted Suricata files from Redis and sending to Laika BOSS
             ''')
     parser.add_argument('-b', '--broker', action='store', dest='broker', default='tcp://localhost:5558',
-            help='Laika BOSS broker (Default: tcp://localhost:5558)')
+                        help='Laika BOSS broker (Default: tcp://localhost:5558)')
     parser.add_argument('-r', '--rhost', action='store', dest="rhost", default="localhost",
-            help='Redis host (Default: localhost)')
+                        help='Redis host (Default: localhost)')
     parser.add_argument('-p', '--rport', action="store", dest="rport", default=6379,
-            help='Redis port (Default: 6379)')
+                        help='Redis port (Default: 6379)')
     args = parser.parse_args()
 
     main(args.broker, args.rhost, args.rport)

@@ -63,19 +63,19 @@ def cleanKey(key):
     return convertToUTF8(new_key)
 
 class ScanError(RuntimeError):
-    '''Base error for any laika  runtime errors'''
+    """Base error for any laika  runtime errors"""
     pass
 
 class QuitScanException(ScanError):
-    '''Quit a scan prematurely'''
+    """Quit a scan prematurely"""
     pass
 
 class GlobalScanTimeoutError(ScanError):
-    '''Global timeout for an entire scan'''
+    """Global timeout for an entire scan"""
     pass
 
 class GlobalModuleTimeoutError(ScanError):
-    '''Global timeout for any module within a scan'''
+    """Global timeout for any _module within a scan"""
     pass
 
 class ScanObject(object):
@@ -131,10 +131,10 @@ class ScanObject(object):
         value = convertToUTF8(value)
         key = cleanKey(key)
 
-        # If no metadata exists for this module yet, add a new dictionary with the key/value pair
+        # If no metadata exists for this _module yet, add a new dictionary with the key/value pair
         if moduleName not in self.moduleMetadata:
             self.moduleMetadata[moduleName] = { key : value }
-        # If metadata already exists for this module, first check if the key exists
+        # If metadata already exists for this _module, first check if the key exists
         else:
             # If the key doesn't already exist, add it to the dictionary
             if key not in self.moduleMetadata[moduleName]:
@@ -171,9 +171,9 @@ class ScanObject(object):
 
     # Wrapper function for retrieving metadata from the object.
     # If you don't specify a key this function returns a dictionary containing all metadata
-    # for the specified module.
+    # for the specified _module.
     def getMetadata(self, moduleName, key=None):
-        # Return a specific piece of metadata for a specific module 
+        # Return a specific piece of metadata for a specific _module
         if key is not None:
             if moduleName in self.moduleMetadata:
                 if key in self.moduleMetadata[moduleName]:
@@ -182,7 +182,7 @@ class ScanObject(object):
                     return '' 
             else:
                 return '' 
-        # Return all metadata for a specific module
+        # Return all metadata for a specific _module
         else:
             if moduleName in self.moduleMetadata:
                 return self.moduleMetadata[moduleName]

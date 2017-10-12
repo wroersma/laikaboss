@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
+#
+import sys
 from distutils.util import strtobool
 import logging
 import os
@@ -21,15 +22,16 @@ from laikaboss.si_module import SI_MODULE
 from laikaboss.objectmodel import ExternalVars, ModuleObject
 from laikaboss.util import get_option, getParentObject
 import tempfile
+
 import UnRAR2
 from UnRAR2.rar_exceptions import IncorrectRARPassword, InvalidRARArchive
 
 def _create_word_list(content):
-    '''
+    """
     Get up to the first 200 words from the content. The content is expected to be an email, so all
     lines before the first blank line are skipped as they are assumed to be the header. Any lines
     after 'Content-Disposition: attachment' are also skipped as they are assumed to be the footer.
-    '''
+    """
     words = list()
     header = 1
     footer = 0
@@ -48,14 +50,14 @@ def _create_word_list(content):
     return words[:200]
 
 class EXPLODE_RAR(SI_MODULE):
-    '''Laika module for exploding buffers out of RAR files.'''
+    """Laika _module for exploding buffers out of RAR files."""
 
     def __init__(self,):
-        '''Main constructor'''
+        """Main constructor"""
         self.module_name = "EXPLODE_RAR"
 
     def _run(self, scanObject, result, depth, args):
-        '''Laika framework module logic execution'''
+        """Laika framework _module logic execution"""
         moduleResult = []
 
         file_limit = int(get_option(args, 'filelimit', 'rarfilelimit', 0))
@@ -65,7 +67,11 @@ class EXPLODE_RAR(SI_MODULE):
         temp_dir = get_option(args, 'tempdir', 'tempdir', '/tmp/laikaboss_tmp')
         if not os.path.isdir(temp_dir):
             os.mkdir(temp_dir)
-            os.chmod(temp_dir, 0777)
+            if sys.version_info >= (3, 0):
+                os.chmod(temp_dir, 0o0777)
+            else:
+                os.chmod(temp_dir, 0777)
+
 
         # A temp file must be created as UnRAR2 does not accept buffers
         with tempfile.NamedTemporaryFile(dir=temp_dir) as temp_file:

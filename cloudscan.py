@@ -28,8 +28,13 @@ import os, sys, time, logging, select
 import getpass
 from socket import gethostname
 from optparse import OptionParser
-import ConfigParser
-import zlib, cPickle as pickle
+if sys.version_info >= (3, 0):
+    from _pickle import pickle
+    from configparser import ConfigParser
+else:
+    import cPickle as pickle
+    from ConfigParser import ConfigParserimport
+import zlib
 from laikaboss.objectmodel import ExternalObject, ExternalVars
 from laikaboss.constants import level_minimal, level_metadata, level_full
 from laikaboss.clientLib import Client, getRootObject, get_scanObjectUID, \
@@ -225,7 +230,7 @@ def main():
                 ext_metadata = json.loads(options.ext_metadata)
             assert isinstance(ext_metadata, dict)
         except:
-            print "External Metadata must be a dictionary!"
+            print("External Metadata must be a dictionary!")
             sys.exit(0)
     else:
         ext_metadata = dict()
@@ -243,7 +248,7 @@ def main():
     try:
         return_level = globals()["level_%s" % RETURN_LEVEL]
     except KeyError as e:
-        print "Please specify a valid return level: minimal, metadata or full"
+        print("Please specify a valid return level: minimal, metadata or full")
         sys.exit(1)
 
     if not options.recursive:
@@ -270,11 +275,11 @@ def main():
                 file_len = len(file_buffer)
 
             if file_len > 20971520 and not options.nolimit:
-                print "You're trying to scan a file larger than 20mb.. Are you sure?"
-                print "Use the --remove-limit flag if you really want to do this."
+                print("You're trying to scan a file larger than 20mb.. Are you sure?")
+                print("Use the --remove-limit flag if you really want to do this.")
                 sys.exit(1)
         except IOError as e:
-            print "\nERROR: The file does not exist: %s\n" % (args[0],)
+            print("\nERROR: The file does not exist: %s\n" % (args[0],))
             sys.exit(1)
     else:
         try:
@@ -300,12 +305,12 @@ def main():
 
             
             if len(fileList) > 1000 and not options.nolimit:
-                print "You're trying to scan over 1000 files... Are you sure?"
-                print "Use the --remove-limit flag if you really want to do this."
+                print("You're trying to scan over 1000 files... Are you sure?")
+                print("Use the --remove-limit flag if you really want to do this.")
                 sys.exit(1)
 
         except IOError as e:
-            print "\nERROR: Directory does not exist: %s\n" % (args[0],)
+            print("\nERROR: Directory does not exist: %s\n" % (args[0],))
             sys.exit(1)
 
 
@@ -348,7 +353,7 @@ def main():
                 rootObject = getRootObject(result)
                 try:
                     jsonResult = getJSON(result)
-                    print jsonResult
+                    print(jsonResult)
                 except:
                     logging.exception("error occured collecting results")
                     return
@@ -357,12 +362,12 @@ def main():
                     if not os.path.exists(SAVE_PATH):
                         try:
                             os.makedirs(SAVE_PATH)
-                            print "\nWriting results to %s...\n" % SAVE_PATH
+                            print("\nWriting results to %s...\n" % SAVE_PATH)
                         except (OSError, IOError) as e:
-                            print "\nERROR: unable to write to %s...\n" % SAVE_PATH
+                            print("\nERROR: unable to write to %s...\n" % SAVE_PATH)
                             return
                     else:
-                        print "\nOutput folder already exists! Skipping results output...\n"
+                        print("\nOutput folder already exists! Skipping results output...\n")
                         return
                     for uid, scanObject in result.files.iteritems():
                         f = open("%s/%s" % (SAVE_PATH, uid), "wb")
@@ -372,19 +377,19 @@ def main():
                             if scanObject.filename and scanObject.parent:
                                 linkPath = "%s/%s" % (SAVE_PATH, scanObject.filename.replace("/","_"))
                                 if not os.path.lexists(linkPath):
-                                    os.symlink("%s" % (uid), linkPath)
+                                    os.symlink("%s" % uid, linkPath)
                             elif scanObject.filename:
                                 filenameParts = scanObject.filename.split("/")
-                                os.symlink("%s" % (uid), "%s/%s" % (SAVE_PATH, filenameParts[-1]))
+                                os.symlink("%s" % uid, "%s/%s" % (SAVE_PATH, filenameParts[-1]))
                         except:
-                            print "Unable to create symlink for %s" % (uid)
+                            print("Unable to create symlink for %s" % uid)
 
                     f = open("%s/%s" % (SAVE_PATH, "results.log"), "wb")
                     f.write(jsonResult)
                     f.close()
                     sys.exit(1)
             else:
-                print "ERROR: No result received (scan timed out)"
+                print("ERROR: No result received (scan timed out)")
                 return
         else:
             try:
@@ -399,14 +404,14 @@ def main():
             for i in range(num_procs):
                 job_queue.put("STOP")
 
-            print "File list length: %s" % len(fileList)
+            print("File list length: %s" % len(fileList))
 
             for i in range(num_procs):
                 Process(target=worker, args=(options.nolimit, REQUEST_RETRIES, REQUEST_TIMEOUT, SAVE_PATH, SOURCE, return_level, hostname, USE_SSH, BROKER_HOST, SSH_HOST,ext_metadata,options.ephID,)).start()
    
             results_processed = 0
             while results_processed < len(fileList):
-                logging.debug("Files left: %s" % ((len(fileList) - results_processed)))
+                logging.debug("Files left: %s" % (len(fileList) - results_processed))
                 resultText = result_queue.get()
                 try:
                     # Process results
@@ -417,10 +422,10 @@ def main():
                 except Exception as e:
                     raise
 
-            print 'Wrote results to cloudscan.log'
+            print('Wrote results to cloudscan.log')
 
     except KeyboardInterrupt:
-        print "Interrupted by user, exiting..."
+        print("Interrupted by user, exiting...")
         sys.exit(1)
 
 def worker(nolimit, REQUEST_RETRIES, REQUEST_TIMEOUT, SAVE_PATH, SOURCE, return_level, hostname, USE_SSH, BROKER_HOST, SSH_HOST, ext_metadata, ephID):
@@ -440,21 +445,21 @@ def worker(nolimit, REQUEST_RETRIES, REQUEST_TIMEOUT, SAVE_PATH, SOURCE, return_
     randNum = randint(1, 10000)
     
     for fname in iter(job_queue.get, 'STOP'):
-        print "Worker %s: Starting new request" % randNum
+        print("Worker %s: Starting new request" % randNum)
         try:
             # Try to read the file
             file_buffer = open(fname, 'rb').read()
             file_len = len(file_buffer)
             logging.debug("opened file %s with len %i" % (fname, file_len))
             if file_len > 20971520 and not nolimit:
-                print "You're trying to scan a file larger than 20mb.. Are you sure?"
-                print "Use the --remove-limit flag if you really want to do this."
-                print "File has not been scanned: %s" % fname
+                print("You're trying to scan a file larger than 20mb.. Are you sure?")
+                print("Use the --remove-limit flag if you really want to do this.")
+                print("File has not been scanned: %s" % fname)
                 result_queue.put("~~~~~~~~~~~~~~~~~~~~\nFile has not been scanned due to size: %s\n~~~~~~~~~~~~~~~~~~~~" % fname)
                 continue
         except IOError as e:
-            print "\nERROR: The file does not exist: %s\n" % (fname,)
-            print "Moving to next file..."
+            print("\nERROR: The file does not exist: %s\n" % (fname,))
+            print("Moving to next file...")
             result_queue.put("~~~~~~~~~~~~~~~~~~~~\nFile has not been scanned due to an IO Error: %s\n~~~~~~~~~~~~~~~~~~~~" % fname)
             continue
 
@@ -486,12 +491,12 @@ def worker(nolimit, REQUEST_RETRIES, REQUEST_TIMEOUT, SAVE_PATH, SOURCE, return_
                 if not os.path.exists(FILE_SAVE_PATH):
                     try:
                         os.makedirs(FILE_SAVE_PATH)
-                        print "Writing results to %s..." % FILE_SAVE_PATH
+                        print("Writing results to %s..." % FILE_SAVE_PATH)
                     except (OSError, IOError) as e:
-                        print "\nERROR: unable to write to %s...\n" % FILE_SAVE_PATH
+                        print("\nERROR: unable to write to %s...\n" % FILE_SAVE_PATH)
                         return
                 else:
-                    print "\nOutput folder already exists! Skipping results output...\n"
+                    print("\nOutput folder already exists! Skipping results output...\n")
                     return
                 for uid, scanObject in result.files.iteritems():
                     f = open("%s/%s" % (FILE_SAVE_PATH, uid), "wb")
@@ -500,12 +505,12 @@ def worker(nolimit, REQUEST_RETRIES, REQUEST_TIMEOUT, SAVE_PATH, SOURCE, return_
                     if scanObject.filename and scanObject.depth != 0:
                         linkPath = "%s/%s" % (FILE_SAVE_PATH, scanObject.filename.replace("/","_"))
                         if not os.path.lexists(linkPath):
-                            os.symlink("%s" % (uid), linkPath)
+                            os.symlink("%s" % uid, linkPath)
                     elif scanObject.filename:
                         filenameParts = scanObject.filename.split("/")
                         linkPath = "%s/%s" % (FILE_SAVE_PATH, filenameParts[-1])
                         if not os.path.lexists(linkPath):
-                            os.symlink("%s" % (uid), linkPath)
+                            os.symlink("%s" % uid, linkPath)
                 f = open("%s/%s" % (FILE_SAVE_PATH, "results.json"), "wb")
                 f.write(jsonResult)
                 f.close()

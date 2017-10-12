@@ -23,13 +23,13 @@ from laikaboss.util import log_module, get_option, log_module_error, get_scanObj
 
 
 class SI_MODULE:
-    '''Base module class for Laika'''
+    """Base _module class for Laika"""
     def __init__(self,):
-        '''Empty init method, to be overridden by modules'''
+        """Empty init method, to be overridden by modules"""
         pass
 
     def run(self, scanObject, result, depth, args):
-        '''Wrapper method around _run for error handling'''
+        """Wrapper method around _run for error handling"""
         moduleLoggingBool = config.modulelogging
         try:
             starttime = time.time()
@@ -59,11 +59,11 @@ class SI_MODULE:
         except GlobalScanTimeoutError:
             raise
         except GlobalModuleTimeoutError:
-            # If the module times out, add a flag and continue as a normal error
+            # If the _module times out, add a flag and continue as a normal error
             scanObject.addFlag("dispatch:err:module_timeout:%s" % self.module_name)
 
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.exception("error on %s running module %s. exception details below: ", 
+            logging.exception("error on %s running _module %s. exception details below: ",
                 get_scanObjectUID(getRootObject(result)), self.module_name)
 
             if moduleLoggingBool:
@@ -76,14 +76,14 @@ class SI_MODULE:
             return []
 
         except QuitScanException:
-            # If the module is terminated early, add a flag and proceed the exception up the stack
+            # If the _module is terminated early, add a flag and proceed the exception up the stack
             scanObject.addFlag("dispatch:err:quit_scan")
-            logging.warn("quitting scan while running module %s", self.module_name)
+            logging.warn("quitting scan while running _module %s", self.module_name)
             raise
 
         except Exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.exception("error on %s running module %s. exception details below: ",
+            logging.exception("error on %s running _module %s. exception details below: ",
                 get_scanObjectUID(getRootObject(result)), self.module_name)
 
             if moduleLoggingBool:
@@ -96,22 +96,22 @@ class SI_MODULE:
             return [] 
 
     def _run(self, scanObject, result, depth, args):
-        ''' Blank method to be overridden by modules for scan operations '''
+        """ Blank method to be overridden by modules for scan operations """
         pass
 
     def close(self, ):
-        ''' Wrapper method around _close for error handling '''
+        """ Wrapper method around _close for error handling """
 
         moduleLoggingBool = config.modulelogging
 
         try:
             self._close()
         except QuitScanException:
-            logging.warn("quitting destructor early on module %s", self.module_name)
+            logging.warn("quitting destructor early on _module %s", self.module_name)
             raise
         except Exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.exception("error closing module %s. exception details below: " % self.module_name)
+            logging.exception("error closing _module %s. exception details below: " % self.module_name)
             if moduleLoggingBool:
                 log_module_error(self.module_name,
                                  None,
@@ -121,7 +121,7 @@ class SI_MODULE:
                                                                  exc_traceback)))
 
     def _close(self, ):
-        ''' Blank method to be overridden by modules for any operations that need to occur after all scans have been completed. '''
+        """ Blank method to be overridden by modules for any operations that need to occur after all scans have been completed. """
         pass
 
     module_name = ""

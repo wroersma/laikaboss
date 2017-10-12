@@ -11,11 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
-import ConfigParser
+#
+import sys
+if sys.version_info >= (3, 0):
+    from configparser import ConfigParser
+
+    Config = ConfigParser()
+
+else:
+    import ConfigParser
+
+    Config = ConfigParser.ConfigParser()
 import logging
 
-Config = ConfigParser.ConfigParser()
 
 defaults = { 
                 'yaradispatchrules' : 'etc/framework/dispatch.yara',
@@ -38,7 +46,7 @@ globals().update(defaults)
 def _ConfigSectionMap(section):
     dict1 = {}
     try:
-        options = Config.options(section)
+        oyara_on_demandptions = Config.options(section)
     except ConfigParser.NoSectionError:
         logging.debug("Section %s does not exist in the config" % section)
         return dict1
@@ -65,7 +73,7 @@ def _map_to_globals(dictionary):
             globals()['%s' % (base,)] = '%s' % (value,)
 
 def init(path):
-    logging.debug("Initializing with config: %s" % (path))
+    logging.debug("Initializing with config: %s" % path)
     Config.read(path)
 
     _map_to_globals(_ConfigSectionMap('General'))

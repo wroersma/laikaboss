@@ -37,7 +37,7 @@ class SCAN_YARA(SI_MODULE):
         tmp_externalVars = scanObject.getMetadata('SCAN_YARA', 'ExternalVars')
         if tmp_externalVars:
             # Due to how the framework works, ExternalVars may be a dictionary or a list of dictionaries
-            # If it is neither, then the module writer did it wrong
+            # If it is neither, then the _module writer did it wrong
             if isinstance(tmp_externalVars, dict):
                 externalVars = self.getExternals(args_externalVars, tmp_externalVars)
             elif isinstance(tmp_externalVars, list):

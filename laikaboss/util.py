@@ -47,10 +47,10 @@ char_set = string.ascii_uppercase + string.digits + string.ascii_lowercase
 yara_on_demand_rules = {}
 
 def is_compiled(rule):
-    '''
-    Check to see if the yara signature is pre-compiled. 
+    """
+    Check to see if the yara signature is pre-compiled.
     Compiled Yara has the file magic of 'YARA' starting at byte 0
-    '''
+    """
     with open(rule, 'r') as f:
         if f.read(4) == 'YARA':
             return True
@@ -75,11 +75,11 @@ def yara_on_demand(rule, theBuffer, externalVars={}, maxBytes=0):
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise
     except:
-        logging.exception("util: yara on demand scan failed with rule %s" % (rule))
+        logging.exception("util: yara on demand scan failed with rule %s" % rule)
         raise
 
 def listToSSV(alist):
-    '''
+    """
     Converts a list object to a space separated value.
 
     Arguments:
@@ -87,11 +87,11 @@ def listToSSV(alist):
 
     Returns:
     string with all object contains in the list separated by a space
-    '''
+    """
     return ' '.join(alist)
 
 def getObjectHash(buffer):
-    '''
+    """
     Uses hashlib to get an md5 of the raw object buffer
 
     Arguments:
@@ -99,11 +99,11 @@ def getObjectHash(buffer):
 
     Returns:
     string containing the md5 digest of the buffer
-    '''
+    """
     return hashlib.md5(buffer).hexdigest()
 
 def log_result(result, returnOutput=False):
-    '''
+    """
     This function takes a fully populated scan result set and sends a syslog message for
     each object contained in the set.
 
@@ -112,13 +112,13 @@ def log_result(result, returnOutput=False):
 
     Returns:
     Nothing.
-    '''
+    """
     global log_delimiter
     global log_delimiter_replacement
     # check result.source (set by the caller) to see if its in our list of sources 
     # we should log from. this is to exclude logging from sources such as filescan.
     # this can be overridden using the 'all' keyword in the configuration.
-    # module and error logging still occur regardless
+    # _module and error logging still occur regardless
     output = []
     if 'all' not in logResultFromSource and result.source not in logResultFromSource:
         logging.debug('skipping logging result from source %s not in %s' % (result.source, logResultFromSource))
@@ -159,7 +159,7 @@ def log_result(result, returnOutput=False):
             if returnOutput:
                 output.append(log)
             else:
-                syslog.syslog(scanLogLevel, "%s"%(log))
+                syslog.syslog(scanLogLevel, "%s" % log)
             logging.debug("log entry: %s" % log)
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise
@@ -169,7 +169,7 @@ def log_result(result, returnOutput=False):
         return output
         
 def clean_field(field, last=False):
-    '''
+    """
     Cleans up a string to be inserted into a log entry. Ensures it is of type "str",
     replaces any pipe characters with an underscore, then adds a pipe to the end of
     the string.
@@ -180,7 +180,7 @@ def clean_field(field, last=False):
 
     Returns:
     A string ready for use in a log entry
-    '''
+    """
     if type(field) not in [str, list, unicode]:
         field = str(field)
     elif type(field) is list:
@@ -198,7 +198,7 @@ def clean_field(field, last=False):
     return result.replace("\0", "_")
 
 def getRootObject(result):
-    '''
+    """
     Returns the ScanObject in a result set that contains no parent (making it the root).
 
     Arguments:
@@ -206,21 +206,21 @@ def getRootObject(result):
 
     Returns:
     The root ScanObject for the result set.
-    '''
+    """
     return result.files[result.rootUID]
 
 def getParentObject(result, scanObject):
-    '''
+    """
     Returns the ScanObject in a result set that has the UID of the given scanObject's parent, thus making it the parent object.
 
     Arguments:
     result -- a fully populated scan result set
-    scanObject -- the object that the module was run against
+    scanObject -- the object that the _module was run against
 
     Returns:
     The parent object for the result set. None is returned if there is no parent (root object).
 
-    '''
+    """
     parent = scanObject.parent
     if parent:
         parentObj = result.files[parent]
@@ -229,20 +229,20 @@ def getParentObject(result, scanObject):
     return parentObj
 
 def log_module(module_status, module_name, module_time, scanObject, result, msg=''):
-    '''
+    """
     Standard logging function for all scan modules.
 
     Arguments:
-    module_state    -- the status of the module (START, MSG, END)
-    module_name     -- the name of the module calling this function
-    module_time     -- the elapsed time it took to run the module
-    scanObject      -- the object that the module was run against
-    result          -- the result of the module
+    module_state    -- the status of the _module (START, MSG, END)
+    module_name     -- the name of the _module calling this function
+    module_time     -- the elapsed time it took to run the _module
+    scanObject      -- the object that the _module was run against
+    result          -- the result of the _module
     msg             -- message to add additional comments to log
 
     Returns:
     Nothing
-    '''
+    """
     global log_delimiter
     global log_delimiter_replacement
     try:
@@ -268,24 +268,24 @@ def log_module(module_status, module_name, module_time, scanObject, result, msg=
                    clean_field(parentFilename),
                    clean_field(msg, last=True)
                )
-        syslog.syslog(moduleLogLevel, "%s"%(log))
+        syslog.syslog(moduleLogLevel, "%s" % log)
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise
     except Exception as e:
         logging.exception("log_module error, details below:")
 
 def log_module_error(module_name, scanObject, result, error):
-    '''
+    """
     Standard error logging function for all scan modules
 
     Arguments:
-    module_name -- the name of the module calling this function
-    scanObject  -- the object that the module was run against
+    module_name -- the name of the _module calling this function
+    scanObject  -- the object that the _module was run against
     error       -- an error message (usually a stack trace)
-    
+
     Returns:
     Nothing
-    '''
+    """
     global log_delimiter
     global log_delimiter_replacement
 
@@ -311,22 +311,22 @@ def log_module_error(module_name, scanObject, result, error):
                    clean_field(parentFilename),
                    clean_field(error, last=True)
                )
-        syslog.syslog(moduleLogLevel, "%s"%(log))
+        syslog.syslog(moduleLogLevel, "%s" % log)
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise
     except Exception as e:
-        logging.exception("module error logging error, details below:") 
+        logging.exception("_module error logging error, details below:")
 
 def log_CEF(module_name, staticDict, extensionDict):
-    '''
-    Logging function for modules that need to log to ArcSight. 
-    
+    """
+    Logging function for modules that need to log to ArcSight.
+
     Using the ArcSight smart connector for Syslog, the data is
     formatted into ArcSight Common Event Format (CEF) and forwared
     to Syslog, where it will be forwared onto ArcSight.
 
     Arguments:
-    staticDict  -- the dictionary of static objects that are 
+    staticDict  -- the dictionary of static objects that are
                     required for every ArcSight entry. these
                     are defaulted if the are not included.
                     Available fields (see ArcSight documentation for more info):
@@ -339,15 +339,15 @@ def log_CEF(module_name, staticDict, extensionDict):
                         - Severity
     extensionDict   -- the dictionary of other objects that
                         are used in ArcSight, such as custom fields.
-                        The keys available are specified in the 
-                        ArcSight documentation. According to the 
+                        The keys available are specified in the
+                        ArcSight documentation. According to the
                         docs, there are some fields that use short
                         names, some that use the full names, and
                         some fields that appear to be left out entirely.
                         As such, make sure to review the documentation
                         when using this function.
 
-    '''
+    """
     CEF = "CEF:"
     
     version = "0"
@@ -412,7 +412,7 @@ def log_CEF(module_name, staticDict, extensionDict):
     return logText
 
 def CEFify(input):
-    ''' Returns a string that is valid for CEF Extension format. '''
+    """ Returns a string that is valid for CEF Extension format. """
     
     input = input.replace('\\','\\\\')
     input = input.replace('=','\\=').replace('|','\\|').replace('\n','').replace('\r','').replace('\t','')
@@ -420,45 +420,45 @@ def CEFify(input):
     return input
 
 def getRandFill():
-    '''Returns 6 random characters. Used for creating temporary ID's'''
+    """Returns 6 random characters. Used for creating temporary ID's"""
     return ''.join(random.sample(char_set,6))
 
 def get_parentModules(result, scanObject):
-    '''
-    Returns a string containing the scan modules run against the parent of a 
-    ScanObject instance. The parent is a tuple containing the UID and (optional) 
+    """
+    Returns a string containing the scan modules run against the parent of a
+    ScanObject instance. The parent is a tuple containing the UID and (optional)
     ID
-    '''
+    """
     if scanObject.parent:
         return result.files[scanObject.parent].scanModules
     else:
         return ''
 
 def get_scanObjectUID(scanObject):
-    '''
+    """
     Get the UID for a ScanObject instance.
-    
+
     Arguments:
     scanObject -- a ScanObject instance
 
     Returns:
     A string containing the UID of the object
-    '''
+    """
     return scanObject.uuid
 
 
 def get_module_arguments(sm):
-    '''
-    Extracts arguments from scan module declarations inside the yara dispatcher.
+    """
+    Extracts arguments from scan _module declarations inside the yara dispatcher.
     Format is:
     SCAN_MODULE(arg1=value1,arg2=value2, arg3=value3)
-    
+
     Arguments:
     sm --- a string in the format above
 
     Returns:
-    A tuple containing the module name and a dictionary containing key value pairs.
-    '''
+    A tuple containing the _module name and a dictionary containing key value pairs.
+    """
     # Set default values
     arg_dict = {}
     module = ""
@@ -466,7 +466,7 @@ def get_module_arguments(sm):
     open_paren = sm.find('(')
     try:
         if open_paren > 0:
-            # Get the name of the module
+            # Get the name of the _module
             module = sm[:open_paren]
             logging.debug("si_dispatch,util - Attempting to extract arguments from %s" % sm)
             args_string = sm[open_paren + 1:len(sm) - 1]
@@ -479,25 +479,25 @@ def get_module_arguments(sm):
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise
     except Exception as e:
-        logging.exception("error parsing module arguments, details below: ")
+        logging.exception("error parsing _module arguments, details below: ")
     return module, arg_dict
 
 def get_all_module_metadata(result, scanModule):
-    '''
-    Loop through all results currently in populated and extract metadata for a specific module.
-    Since this function will probably be called directly from a module, it's possible the
+    """
+    Loop through all results currently in populated and extract metadata for a specific _module.
+    Since this function will probably be called directly from a _module, it's possible the
     metadata being sought after will not be available depending on what sequence the modules are
     run in.
-    
+
     Arguments:
     result     --- a partially populated ScanResult object.
     scanModule --- a string in the format above
 
     Returns:
-    A dictionary where the key is the uid and the value is a dictionary containing the module
-    metadata for the specified module. The dictionary will only contain results for objects
+    A dictionary where the key is the uid and the value is a dictionary containing the _module
+    metadata for the specified _module. The dictionary will only contain results for objects
     which have metadata available.
-    '''
+    """
     moduleMeta = {}
     for uid, scanObject in result.files.iteritems():
         mm = scanObject.getMetadata(scanModule)
@@ -506,32 +506,32 @@ def get_all_module_metadata(result, scanModule):
     return moduleMeta
 
 def get_parent_metadata(result, scanObject, scanModule=None):
-    '''
-    Get the module metadata for the parent of a given ScanObject. Optionally you may specifiy a 
-    specific module to get metadata for. If no scan module name is given, all module metadata 
+    """
+    Get the _module metadata for the parent of a given ScanObject. Optionally you may specifiy a
+    specific _module to get metadata for. If no scan _module name is given, all _module metadata
     will be returned.
 
     Arguments:
     result     --- a partially populated ScanResult object.
     scanObject --- a ScanObject for which the metadata of its direct parent is desired
-    scanModule (optional) --- a specific module to get metadata for
+    scanModule (optional) --- a specific _module to get metadata for
 
     Returns:
     1. Without scanModule specified:
-           All module metadata for the parent of scanObject in a dictionary.
+           All _module metadata for the parent of scanObject in a dictionary.
                 { EXPLODE_EMAIL : { sender : blah@foo.com,
                                     recipient: john.doe@example.com },
                   SCAN_HEADERS  : { upstream_ip : 192.168.1.2,
                                     downstream_ip : 127.0.0.1 }
                 }
     2. With scanModule specified:
-           All metadata for the specified module.
+           All metadata for the specified _module.
                e.g. scanModule = EXPLODE_EMAIL would return:
                  { sender : blah@foo.com,
                  recipient: john.doe@example.com }
 
     When there is no data present, an empty dictionary is returned.
-    '''
+    """
     if scanObject.parent in result.files and scanModule is None:
         return result.files[scanObject.parent].moduleMetadata
     elif scanObject.parent in result.files and scanModule is not None:
@@ -543,31 +543,31 @@ def get_parent_metadata(result, scanObject, scanModule=None):
         return {}
 
 def get_root_metadata(result, scanModule=None):
-    '''
-    Get the module metadata for the root of a given ScanResult set. Optionally you may specifiy a 
-    specific module to get metadata for. If no scan module name is given, all module metadata 
+    """
+    Get the _module metadata for the root of a given ScanResult set. Optionally you may specifiy a
+    specific _module to get metadata for. If no scan _module name is given, all _module metadata
     will be returned.
 
     Arguments:
     result     --- a partially populated ScanResult object.
-    scanModule (optional) --- a specific module to get metadata for
+    scanModule (optional) --- a specific _module to get metadata for
 
     Returns:
     1. Without scanModule specified:
-           All module metadata for the parent of scanObject in a dictionary.
+           All _module metadata for the parent of scanObject in a dictionary.
                 { EXPLODE_EMAIL : { sender : blah@foo.com,
                                     recipient: john.doe@example.com },
                   SCAN_HEADERS  : { upstream_ip : 192.168.1.2,
                                     downstream_ip : 127.0.0.1 }
                 }
     2. With scanModule specified:
-           All metadata for the specified module.
+           All metadata for the specified _module.
                e.g. scanModule = EXPLODE_EMAIL would return:
                  { sender : blah@foo.com,
                  recipient: john.doe@example.com }
 
     When there is no data present, an empty dictionary is returned.
-    '''
+    """
     rootObject = getRootObject(result)
     if scanModule is not None:
         if scanModule in rootObject.moduleMetadata:
@@ -578,10 +578,10 @@ def get_root_metadata(result, scanModule=None):
         return rootObject.moduleMetadata
 
 def uniqueList(lst):
-    '''
-    
+    """
+
     This function is a generator function that takes in a list and returns a
-    de-duplicated list with the contents in the same relative order. It 
+    de-duplicated list with the contents in the same relative order. It
     utilizes the yield operator to submit back the iteration location of each
     unique object in the list. The next iteration (next call to the function)
     will add the value to the set and only yield back a result when it has
@@ -592,7 +592,7 @@ def uniqueList(lst):
     list    --- list to be de-duplicated.
 
     Returns:
-    The function returns a generator object that will need to be iterated 
+    The function returns a generator object that will need to be iterated
     over to continue through the results. In most cases, it is easiest to
     wrap a container constructor, such as list, around the object so that
     it will iterate through the contents and return the full result.
@@ -600,11 +600,11 @@ def uniqueList(lst):
     Example:
     l = ['A', 'B', 'A', 'D', 'C', 'C', 'D']
     print list(uniqueList(l))
-    
+
     Example Output: ['A', 'B', 'D', 'C']
 
 
-    '''
+    """
     seen = set()
     for i in lst:
         if i not in seen:
@@ -620,7 +620,7 @@ def get_option(args, argskey, configkey, default=None):
 
     Arguments:
     args        --  The arguments given from the Laika framework into the
-                    module.
+                    _module.
     argskey     --  The key for the option's value within the Laika
                     framework's arguments.
     configkey   --  The key for the option's value within the overall

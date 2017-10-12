@@ -20,7 +20,11 @@
 ########################################
 
 import os, sys
-import zlib, cPickle as pickle
+import zlib
+if sys.version_info >= (3, 0):
+    import pickle
+else:
+    import cPickle as pickle
 import logging
 from random import randint
 import json
@@ -33,10 +37,10 @@ REQ_TYPE_PICKLE = '1'
 REQ_TYPE_PICKLE_ZLIB = '2'
 
 def dispositionFromResult(result):
-    '''
-    This function examines the DISPOSITIONER module metadata in the scan results 
+    """
+    This function examines the DISPOSITIONER _module metadata in the scan results
     to determine disposition.
-    '''
+    """
     try:
         matches = result.files[result.rootUID].moduleMetadata['DISPOSITIONER']['Disposition']['Matches']
         return sorted(matches)
@@ -47,10 +51,10 @@ def dispositionFromResult(result):
         return ['Error']
     
 def finalDispositionFromResult(result):
-    '''
-    This function examines the DISPOSITIONER module metadata in the scan results 
+    """
+    This function examines the DISPOSITIONER _module metadata in the scan results
     to determine disposition.
-    '''
+    """
     try:
         return result.files[result.rootUID].moduleMetadata['DISPOSITIONER']['Disposition']['Result']
     except QuitScanException:
@@ -72,7 +76,7 @@ def getAttachmentList(result):
     return children
 
 def flagRollup(result):
-    '''
+    """
     This function takes a fully populated result object and returns a list of flags
     which has been sorted and deduplicated.
 
@@ -81,7 +85,7 @@ def flagRollup(result):
 
     Returns:
     A sorted/unique list of all flags in the result
-    '''
+    """
     flag_rollup = [] 
     for id, scanObject in result.files.iteritems():
         flag_rollup.extend(scanObject.flags)
@@ -89,7 +93,7 @@ def flagRollup(result):
     return sorted(flag_rollup)
 
 def getRootObject(result):
-    '''
+    """
     Returns the ScanObject in a result set that contains no parent (making it the root).
 
     Arguments:
@@ -97,23 +101,23 @@ def getRootObject(result):
 
     Returns:
     The root ScanObject for the result set.
-    '''
+    """
     return result.files[result.rootUID] #ScanObject type
 
 def get_scanObjectUID(scanObject):
-    '''
+    """
     Get the UID for a ScanObject instance.
-    
+
     Arguments:
     scanObject -- a ScanObject instance
 
     Returns:
     A string containing the UID of the object.
-    '''
+    """
     return scanObject.uuid
 
 def getJSON(result):
-    '''
+    """
     This function takes the result of a scan, and returns the JSON output.
 
     Arguments:
@@ -121,7 +125,7 @@ def getJSON(result):
 
     Returns:
     A string representation of the json formatted output.
-    '''
+    """
     resultText = ''
 
     # Build the results portion of the log record. This will be a list of
@@ -325,7 +329,7 @@ class Client:
             return result
 
         except KeyboardInterrupt:
-            print "Interrupted by user, exiting..."
+            print("Interrupted by user, exiting...")
             sys.exit()
         except:
             raise
