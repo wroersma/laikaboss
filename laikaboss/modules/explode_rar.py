@@ -22,10 +22,11 @@ from laikaboss.si_module import SI_MODULE
 from laikaboss.objectmodel import ExternalVars, ModuleObject
 from laikaboss.util import get_option, getParentObject
 import tempfile
-
-import UnRAR2
-from UnRAR2.rar_exceptions import IncorrectRARPassword, InvalidRARArchive
-
+try:
+    import UnRAR2
+    from UnRAR2.rar_exceptions import IncorrectRARPassword, InvalidRARArchive
+except:
+    import unrar as UnRar2
 def _create_word_list(content):
     """
     Get up to the first 200 words from the content. The content is expected to be an email, so all
@@ -70,7 +71,7 @@ class EXPLODE_RAR(SI_MODULE):
             if sys.version_info >= (3, 0):
                 os.chmod(temp_dir, 0o0777)
             else:
-                os.chmod(temp_dir, 0777)
+                os.chmod(temp_dir, 0o0777)
 
 
         # A temp file must be created as UnRAR2 does not accept buffers

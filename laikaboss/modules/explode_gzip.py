@@ -15,8 +15,12 @@
 from laikaboss.objectmodel import ModuleObject, ExternalVars
 from laikaboss.si_module import SI_MODULE
 import gzip
-import StringIO
+import sys
 
+if sys.version_info >= (3, 0):
+    from io import StringIO
+else:
+    import StringIo
 
 class EXPLODE_GZIP(SI_MODULE):
     def __init__(self,):

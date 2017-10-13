@@ -16,9 +16,9 @@ import sys
 import time
 import logging
 if sys.version_info >= (3, 0):
-    import queue
+    import queue as Queue
 else:
-    import Queue as queue
+    import Queue
 
 from .util import get_scanObjectUID, listToSSV, yara_on_demand, \
                  log_module, log_module_error, getObjectHash, \
@@ -32,6 +32,7 @@ from contextlib import contextmanager
 from interruptingcow import timeout
 
 module_pointers = {}
+
 
 def _run_module(sm, scanObject, result, depth, args, earlyQuitTime=0):
     """
@@ -115,7 +116,7 @@ def _conditional_scan(scanObject, externalVars, result, depth):
                         'ext_depth': depth or 0
                     }
         yresults = yara_on_demand(config.yaraconditionalrules, listToSSV(scanObject.flags), externals)
-        modulequeue = _get_module_queue(yresults, result, scanObject, "Conditional Rules")
+        moduleQueue = _get_module_Queue(yresults, result, scanObject, "Conditional Rules")
     except (QuitScanException, GlobalScanTimeoutError):
         raise
     except Exception:
@@ -123,10 +124,10 @@ def _conditional_scan(scanObject, externalVars, result, depth):
         log_module_error("si_dispatch", scanObject, result, "error during conditional_scan: %s" % traceback.format_exc())
         return
     # Recusively call the Dispatcher if any conditional scans need to be performed.
-    if not modulequeue.empty():
+    if not moduleQueue.empty():
         Dispatch(scanObject.buffer, result, depth, 
                     scanObject=scanObject, 
-                    extScanModules=modulequeue, 
+                    extScanModules=moduleQueue, 
                     conditional=True) 
 
 def _addExtMetadata(scanObject, data):
@@ -195,12 +196,13 @@ def _gather_metadata(buffer, externalVars, result, depth, maxBytes):
         _addExtMetadata(scanObject, externalVars.extMetaData)
     return scanObject
 
-def _get_module_queue(yresults, result, scanObject, metaLabel):
+
+def _get_module_Queue(yresults, result, scanObject, metaLabel):
     """
-    Description: Takes the results from a dispatch yara scan and creates a priority queue from them.
+    Description: Takes the results from a dispatch yara scan and creates a priority Queue from them.
                  The function also adds dispatch flags if they exist in the rule.
     """
-    modulequeue = queue.Priorityqueue() 
+    moduleQueue = Queue.PriorityQueue()
     dispatchFlags = []
     parentDispatchFlags = []
 
@@ -212,8 +214,8 @@ def _get_module_queue(yresults, result, scanObject, metaLabel):
                 logging.debug("Rule %s set priority %i" % (yr, priority))
             else:
                 priority = int(config.defaultmodulepriority)
-            scanObject.addMetadata("DISPATCH", metaLabel, "%s (%i)" % (str(yr), priority))
-            modulequeue.put((priority, uniqueList(yr.meta['scan_modules'].split())))
+            scanObject.addMetadata("DISPATCH", metaLabel, "%s (%i)" % (yr, priority))
+            moduleQueue.put(priority, uniqueList(yr.meta['scan_modules']))
         if 'flags' in yr.meta:
             dispatchFlags.extend(yr.meta['flags'].split())
         if 'parent_flags' in yr.meta:
@@ -227,11 +229,11 @@ def _get_module_queue(yresults, result, scanObject, metaLabel):
         for pdf in parentDispatchFlags:
             result.files[scanObject.parent].addFlag("dispatch::%s" % pdf)
 
-    return modulequeue
+    return moduleQueue
 
-def _process_module_queue(modulequeue, result, depth, scanObject, earlyQuitTime=0):
+def _process_module_Queue(moduleQueue, result, depth, scanObject, earlyQuitTime=0):
     """
-    Description: Takes a priority _module queue and runs each _module in the appropriate order.
+    Description: Takes a priority _module Queue and runs each _module in the appropriate order.
                  Each _module is tracked for uniqueness to prevent redundancy.
     """
 
@@ -254,13 +256,13 @@ def _process_module_queue(modulequeue, result, depth, scanObject, earlyQuitTime=
             scanObject.addFlag("dispatch:nfo:max_depth_exceeded")
             break
 
-        # Read until the queue is empty
-        if modulequeue.empty(): 
-            logging.debug("Module run queue is empty") 
+        # Read until the Queue is empty
+        if moduleQueue.empty(): 
+            logging.debug("Module run Queue is empty") 
             break
-        scanModules = modulequeue.get()[1]
+        scanModules = moduleQueue.get()
         for sm in scanModules:
-            if sm in moduleSeen: 
+            if sm in moduleSeen:
                 logging.debug("Already ran %s, continuing to the next _module" % sm)
                 continue
             module, args = get_module_arguments(sm)
@@ -346,24 +348,24 @@ source _module: %s" % (get_scanObjectUID(scanObject),
                         'ext_parentModules': listToSSV(externalVars.parentModules) or 'NONE',
                         'ext_sourceModule': externalVars.sourceModule or 'NONE',
                         'ext_contentType': listToSSV(scanObject.contentType) or 'NONE',
-                        'ext_filename': externalVars.filename or 'NONE',
+                        'ext_filename': str(externalVars.filename) or 'NONE',
                         'ext_timestamp': externalVars.timestamp or 'NONE',
-                        'ext_source': externalVars.source or 'NONE',
+                        'ext_source': str(externalVars.source) or 'NONE',
                         'ext_flags': listToSSV(externalVars.flags) or 'NONE',
                         'ext_size': scanObject.objectSize,
                         'ext_depth': int(depth) or 0
                     }
 
         dispatch_rule_start = time.time()
-        yresults = yara_on_demand(config.yaradispatchrules, buffer, externals, MAXBYTES)
+        yresults = yara_on_demand(config.yaradispatchrules, str(buffer), externals, MAXBYTES)
         if config.modulelogging:
             log_module("MSG", 'si_dispatch', time.time() - dispatch_rule_start, scanObject, result, "")
-        modulequeue = _get_module_queue(yresults, result, scanObject, "Rules")
+        moduleQueue = _get_module_Queue(yresults, result, scanObject, "Rules")
 
 
         with _with_conditional(skip_timeout) or timeout(global_scan_timeout, exception=GlobalScanTimeoutError):
             try:
-                _process_module_queue(modulequeue, result, depth, scanObject, global_scan_timeout_endtime)
+                _process_module_Queue(moduleQueue, result, depth, scanObject, global_scan_timeout_endtime)
                 _conditional_scan(scanObject, externalVars, result, depth)
             except GlobalScanTimeoutError:
                 # If the scan times out, add a flag and continue as a normal error
@@ -423,7 +425,7 @@ source _module: %s" % (get_scanObjectUID(scanObject),
     #  This branch is specifically for conditional scans kicked off by this function. Metadata about 
     #  the object has already been collected and all that needs to occur is scans by the specified modules. 
     else:
-        _process_module_queue(extScanModules, result, depth, scanObject)
+        _process_module_Queue(extScanModules, result, depth, scanObject)
 
     logging.debug("si_dispatch - depth: %s, time: %s" % (depth, time.time() - starttime))
 

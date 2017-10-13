@@ -19,7 +19,7 @@ import sys
 import logging
 from laikaboss.objectmodel import QuitScanException, \
                                 GlobalScanTimeoutError, GlobalModuleTimeoutError
-
+import importlib
 # This block of code looks for all py files in the current directory
 # and imports the class with the same name (except uppercase) as the file.
 # This ensures that the dispatcher can access every _module in this folder without
@@ -33,7 +33,7 @@ for _module in os.listdir(os.path.dirname(__file__)):
     try:
         if _module == '__init__.py' or _module[-3:] != '.py':
             continue
-        _temp = __import__(_module[:-3], locals(), globals(), [_module[:-3].upper()], -1)
+        _temp = __import__(_module[:-3], locals(), globals(), [_module[:-3].upper()], 1)
         globals()[_module[:-3].upper()] = getattr(_temp, _module[:-3].upper())
     except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
         raise

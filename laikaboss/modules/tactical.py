@@ -34,7 +34,7 @@ class TACTICAL(SI_MODULE):
         if not os.path.isdir(self.TEMP_DIR):    
             try:
                 os.mkdir(self.TEMP_DIR)
-                os.chmod(self.TEMP_DIR, 0777)
+                os.chmod(self.TEMP_DIR, 0o0777)
             except:
                 raise
             

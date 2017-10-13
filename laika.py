@@ -28,7 +28,12 @@ from laikaboss.util import init_yara, init_logging, log_result
 from laikaboss.clientLib import getJSON, getRootObject, get_scanObjectUID
 from distutils.util import strtobool
 import zlib
-import json
+import ujson as json
+#import json
+try:
+    xrange
+except NameError:
+    xrange = range
 
 # Variable to store configs from file
 configs = {}
@@ -238,7 +243,6 @@ def main():
         error('A valid framework configuration was not found in either of the following locations:\
 \n%s\n%s' % (default_configs['dev_config_path'],default_configs['sys_config_path']))
         return 1
-       
 
     # Check for stdin in no arguments were provided
     if len(args) == 0:
@@ -309,8 +313,7 @@ def main():
     if num_jobs < NUM_PROCS:
         NUM_PROCS = num_jobs
     logging.debug("Starting %s processes" % NUM_PROCS)
-    consumers = [ Consumer(tasks, results)
-                  for i in xrange(NUM_PROCS) ]
+    consumers = [Consumer(tasks, results)for i in xrange(NUM_PROCS)]
     try:
         
         for w in consumers:
@@ -394,7 +397,7 @@ class Consumer(multiprocessing.Process):
                 logging.debug("%s Got poison pill" % (os.getpid()))
                 break
             try:
-                with open(next_task) as nextfile:
+                with open(next_task, 'rb') as nextfile:
                     file_buffer = nextfile.read()
             except IOError:
                 logging.debug("Error opening: %s" % next_task)
@@ -410,11 +413,12 @@ class Consumer(multiprocessing.Process):
                 result.startTime = time.time()
                 result.level = level_metadata
                 myexternalVars = ExternalVars(filename=next_task,
-                                             source=SOURCE,
-                                             ephID=EPHID,
-                                             extMetaData=EXT_METADATA)
-
-                Dispatch(file_buffer, result, 0, externalVars=myexternalVars, extScanModules=SCAN_MODULES)
+                                              source=SOURCE,
+                                              ephID=EPHID,
+                                              extMetaData=EXT_METADATA)
+                file_buffer_string = str(file_buffer).encode('utf-8')
+                Dispatch(file_buffer_string, result, 0, externalVars=myexternalVars, extScanModules=SCAN_MODULES)
+                #Dispatch(file_buffer, result, 0, externalVars=myexternalVars, extScanModules=SCAN_MODULES)
 
                 resultJSON = getJSON(result)
                 if SAVE_PATH:
@@ -426,7 +430,7 @@ class Consumer(multiprocessing.Process):
                         except (OSError, IOError) as e:
                             error("\nERROR: unable to write to %s...\n" % UID_SAVE_PATH)
                             raise
-                    for uid, scanObject in result.files.iteritems():
+                    for uid, scanObject in iter(result.files.items()):
                         with open("%s/%s" % (UID_SAVE_PATH, uid), "wb") as f:
                             f.write(scanObject.buffer)
                         if scanObject.filename and scanObject.depth != 0:
@@ -444,7 +448,7 @@ class Consumer(multiprocessing.Process):
 
                 if LOG_JSON:
                     LOCAL_PATH = LOG_JSON
-                    with open(LOCAL_PATH, "ab") as f:
+                    with open(LOCAL_PATH, "rb") as f:
                         f.write(resultJSON + "\n")
             except:
                 logging.exception("Scan worker died, shutting down")
@@ -452,7 +456,7 @@ class Consumer(multiprocessing.Process):
                 break
             finally:
                 self.task_queue.task_done()
-                self.result_queue.put(zlib.compress(resultJSON))
+                self.result_queue.put(zlib.compress(b'resultJSON'))
 
         close_modules()
         return ret_value

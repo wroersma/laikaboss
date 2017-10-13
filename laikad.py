@@ -240,7 +240,7 @@ class AsyncBroker(Process):
                         except ValueError:
                             pass
                     else:
-                        logging.warn("Broker: bad worker message received")
+                        logging.warning("Broker: bad worker message received")
             except zmq.ZMQError as zmqerror:
                 if "Interrupted system call" not in str(zmqerror):
                     logging.exception("Broker: Received ZMQError")

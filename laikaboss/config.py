@@ -13,16 +13,14 @@
 # limitations under the License.
 #
 import sys
-if sys.version_info >= (3, 0):
+import logging
+try:
     from configparser import ConfigParser
-
     Config = ConfigParser()
-
-else:
+except:
     import ConfigParser
 
     Config = ConfigParser.ConfigParser()
-import logging
 
 
 defaults = { 
@@ -43,10 +41,11 @@ defaults = {
 
 globals().update(defaults)
 
+
 def _ConfigSectionMap(section):
     dict1 = {}
     try:
-        oyara_on_demandptions = Config.options(section)
+        options = Config.options(section)
     except ConfigParser.NoSectionError:
         logging.debug("Section %s does not exist in the config" % section)
         return dict1
@@ -61,9 +60,10 @@ def _ConfigSectionMap(section):
             dict1[option] = None
     return dict1
 
+
 def _map_to_globals(dictionary):
     """Map the values in the dictionary into globals()"""
-    for name, value in dictionary.iteritems():
+    for name, value in iter(dictionary.items()):
         base = '%s' % (name,)
         if value.lower() == 'true': 
             globals()['%s' % (base,)] = True 
@@ -71,6 +71,7 @@ def _map_to_globals(dictionary):
             globals()['%s' % (base,)] = False 
         else:
             globals()['%s' % (base,)] = '%s' % (value,)
+
 
 def init(path):
     logging.debug("Initializing with config: %s" % path)
@@ -82,7 +83,7 @@ def init(path):
 
     if Config.has_section('Proxies'):
         proxies = _ConfigSectionMap('Proxies')
-        for (protocol,proxy) in proxies.items():
+        for (protocol, proxy) in proxies.items():
             if not proxy:
                 proxies.pop(protocol, None)
         if proxies:

@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
-import cStringIO
+#
+try:
+    import cStringIO
+except ModuleNotFoundError:
+    from _io import StringIO as cStringIO
 import logging
 from laikaboss.objectmodel import ExternalVars, ModuleObject#, QuitScanException
 from laikaboss.si_module import SI_MODULE

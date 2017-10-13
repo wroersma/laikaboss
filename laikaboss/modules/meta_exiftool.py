@@ -17,7 +17,7 @@ from laikaboss import config
 import exiftool
 import tempfile
 import os
-
+import sys
 
 class META_EXIFTOOL(SI_MODULE):
     """
@@ -33,7 +33,10 @@ class META_EXIFTOOL(SI_MODULE):
             self.TEMP_DIR = config.tempdir.rstrip('/')
         if not os.path.isdir(self.TEMP_DIR):    
             os.mkdir(self.TEMP_DIR)
-            os.chmod(self.TEMP_DIR, 0777)
+            if sys.version_info >= (3, 0):
+                os.chmod(self.TEMP_DIR, 0o0777)
+            else:
+                os.chmod(self.TEMP_DIR, 0o0777)
 
     def _run(self, scanObject, result, depth, args):
         moduleResult = [] 
@@ -45,7 +48,7 @@ class META_EXIFTOOL(SI_MODULE):
             with exiftool.ExifTool() as et:
                 metaDict = et.get_metadata(temp_file_name)
             if metaDict:
-                for k,v in metaDict.iteritems():
+                for k, v in iter(metaDict.items()):
                     scanObject.addMetadata(self.module_name, k, v)
 
         return moduleResult

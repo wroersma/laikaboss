@@ -15,10 +15,11 @@
 import sys
 import traceback
 import time
-import logging, syslog
+import logging
+import syslog
 from laikaboss import config
 from interruptingcow import timeout
-from objectmodel import GlobalModuleTimeoutError, GlobalScanTimeoutError, QuitScanException
+from .objectmodel import GlobalModuleTimeoutError, GlobalScanTimeoutError, QuitScanException
 from laikaboss.util import log_module, get_option, log_module_error, get_scanObjectUID, getRootObject
 
 
@@ -78,7 +79,7 @@ class SI_MODULE:
         except QuitScanException:
             # If the _module is terminated early, add a flag and proceed the exception up the stack
             scanObject.addFlag("dispatch:err:quit_scan")
-            logging.warn("quitting scan while running _module %s", self.module_name)
+            logging.warning("quitting scan while running _module %s", self.module_name)
             raise
 
         except Exception:
@@ -107,7 +108,7 @@ class SI_MODULE:
         try:
             self._close()
         except QuitScanException:
-            logging.warn("quitting destructor early on _module %s", self.module_name)
+            logging.warning("quitting destructor early on _module %s", self.module_name)
             raise
         except Exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()

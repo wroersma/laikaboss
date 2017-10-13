@@ -16,14 +16,19 @@
 from laikaboss.constants import level_minimal, level_metadata
 import time
 import uuid
+import sys
+if sys.version_info > (3,):
+    long = int
+
+
 
 def convertToUTF8(thing):
     t = type(thing)
     if t in [str]:
-        new_str = unicode(thing, 'utf-8', errors='replace').encode('utf-8')
+        new_str = thing.encode('utf-8', errors='replace')
         return new_str 
-    elif t is unicode:
-        return thing.encode('utf-8')
+    elif t is bytes:
+        return thing
     elif t in [list, set, frozenset]:
         new_obj = []
         for o in thing:
@@ -31,7 +36,7 @@ def convertToUTF8(thing):
         return new_obj
     elif t is dict:
         new_obj = {}
-        for key, value in thing.iteritems():
+        for key, value in iter(thing.items()):
             new_key = cleanKey(key) 
             new_val = convertToUTF8(value)
             new_obj[new_key] = new_val
@@ -45,8 +50,8 @@ def convertToUTF8(thing):
 
 #Utility function to (conditionally) convert a unicode buffer to UTF-8
 def ensureNotUnicode(buffer):
-    if type(buffer) is unicode:
-        return buffer.encode('utf-8')
+    if type(buffer) is bytes:
+        return buffer
     else:
         return buffer
 
@@ -54,7 +59,7 @@ def cleanKey(key):
     bad_chars = ['\0', '.', '$']
     new_key = key
 
-    if not (isinstance(key, str) or isinstance(key, unicode)):
+    if not (isinstance(key, str) or isinstance(key, bytes)):
         new_key = str(new_key)
 
     for c in bad_chars:

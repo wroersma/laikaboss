@@ -16,7 +16,10 @@ import struct
 import zlib
 import pylzma
 import logging
-from cStringIO import StringIO
+try:
+    from cStringIO import StringIO
+except ModuleNotFoundError:
+    from io import StringIO
 from laikaboss.objectmodel import ModuleObject, ExternalVars, QuitScanException, \
                                 GlobalScanTimeoutError, GlobalModuleTimeoutError
 from laikaboss.si_module import SI_MODULE

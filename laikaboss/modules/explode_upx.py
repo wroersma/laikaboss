@@ -30,7 +30,7 @@ class EXPLODE_UPX(SI_MODULE):
             self.TEMP_DIR = config.tempdir.rstrip('/')
         if not os.path.isdir(self.TEMP_DIR):
             os.mkdir(self.TEMP_DIR)
-            os.chmod(self.TEMP_DIR, 0777)
+            os.chmod(self.TEMP_DIR, 0o0777)
 
     def _run(self, scanObject, result, depth, args):
         """ The core of your laika _module. This is how your code will be invoked

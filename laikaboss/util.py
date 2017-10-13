@@ -51,7 +51,7 @@ def is_compiled(rule):
     Check to see if the yara signature is pre-compiled.
     Compiled Yara has the file magic of 'YARA' starting at byte 0
     """
-    with open(rule, 'r') as f:
+    with open(rule) as f:
         if f.read(4) == 'YARA':
             return True
         else: 
@@ -181,11 +181,11 @@ def clean_field(field, last=False):
     Returns:
     A string ready for use in a log entry
     """
-    if type(field) not in [str, list, unicode]:
+    if type(field) not in [str, list, bytes]:
         field = str(field)
     elif type(field) is list:
         field = listToSSV(set(field))
-    elif type(field) is unicode:
+    elif type(field) is bytes:
         try:
             field = field.encode('ascii', 'backslashreplace')
         except (QuitScanException, GlobalScanTimeoutError, GlobalModuleTimeoutError):
@@ -576,6 +576,7 @@ def get_root_metadata(result, scanModule=None):
             return {}
     else: 
         return rootObject.moduleMetadata
+
 
 def uniqueList(lst):
     """
